@@ -2,6 +2,7 @@ services:
   - type: web
     name: safe-signal-demo
     runtime: python
+    branch: main
     rootDir: safe-signal
     plan: free
     buildCommand: pip install -r backend/requirements.txt && npm --prefix frontend ci && npm --prefix frontend run build
