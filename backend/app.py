@@ -44,28 +44,70 @@ SCENARIOS = [
     {'id': 'support', 'title': 'Unexpected technical support', 'caller': '+1 202-555-0163', 'category': 'Remote-access fraud', 'transcript': 'I am from technical support. Install remote access software and send gift cards to remove the virus. You must act immediately.'},
 ]
 
-RULES = [
-    ('tell me your one-time code', 'Verification-code request'),
-    ('read me the code', 'Verification-code request'),
-    ('gift card', 'Gift-card payment'),
-    ('remote access', 'Remote-access request'),
-    ('do not tell anyone', 'Secrecy pressure'),
-    ("don't tell anyone", 'Secrecy pressure'),
-    ('immediately', 'Urgency'),
-    ('act now', 'Urgency'),
-    ('social security number', 'Sensitive-info request'),
-    ('wire transfer', 'Payment pressure'),
-    ('gift cards', 'Gift-card payment'),
-    ('send me the pin', 'Credential request'),
-    ('the code we', 'Verification-code request'),
-    ('anydesk', 'Remote-access request'),
-    ('teamviewer', 'Remote-access request'),
-    ('bitcoin', 'Untraceable payment'),
-    ('zelle', 'Untraceable payment'),
-    ('bail', 'Emergency-relative pressure'),
-    ('avoid arrest', 'Threat pressure'),
-    ('arrested', 'Threat pressure'),
+REQUEST = r"(?:tell|read|send|share|give|provide|repeat|forward|text|say|need|what(?:\s+(?:is|are)|['\u2019]s))"
+REQUEST_LINK = r'(?:\s+(?:me|us|out|aloud|back|over|your|the|that|this|a|an|please|with|to|pin|and)){0,8}\s+'
+CODE = (
+    r'(?:(?:one[-\s\u2010-\u2015]+time|verification|security|authentication|login|two[-\s]+factor|2fa|sms)'
+    r'\s+(?:code|password|pin|number)|otp|passcode|'
+    r'(?:four|six|eight|[468])[-\s\u2010-\u2015]+digits?(?:[-\s]+(?:code|pin|number))?)'
+)
+PAYMENT = r'(?:pay|send|buy|purchase|transfer|wire|deposit)'
+PAYMENT_LINK = (
+    r'(?:\s+(?:me|us|them|your|the|a|an|with|using|via|through|in|by|for|some|two|three|five|ten|'
+    r'worth|of|money|fee|funds|bill|payment|balance|fine|taxes|\$?\d+(?:,\d{3})*(?:\.\d+)?)){0,8}\s+'
+)
+RULE_DEFINITIONS = [
+    ('Verification-code request',
+     rf'{REQUEST}{REQUEST_LINK}{CODE}|'
+     rf'{REQUEST}{REQUEST_LINK}code\s+(?:(?:that\s+)?(?:we|I|you)\s+(?:just\s+)?(?:sent|texted|received)|'
+     r'(?:from|in)\s+(?:the|your)\s+(?:text(?:\s+message)?|sms|email))|'
+     r'(?:read|tell)\s+(?:me|us)\s+(?:the|your)\s+code'),
+    ('Credential request', rf'{REQUEST}{REQUEST_LINK}(?:(?:bank|account|login)\s+)?(?:pin|password|credentials)'),
+    ('Sensitive-info request',
+     rf'{REQUEST}{REQUEST_LINK}(?:social\s+security\s+number|ssn|card\s+number|cvv|bank\s+account\s+number)'),
+    ('Remote-access request',
+     r'(?:install|download|open|run|launch|enable|allow|grant|give)'
+     r'(?:\s+(?:me|us|the|this|your|a|our)){0,5}\s+'
+     r'(?:anydesk|teamviewer|remote\s+(?:access|desktop)|screen[-\s]+sharing)|'
+     r'(?:allow|let)\s+(?:me|us)\s+(?:to\s+)?(?:access|control)\s+your\s+(?:computer|device|screen)'),
+    ('Gift-card payment',
+     rf'{PAYMENT}{PAYMENT_LINK}(?:prepaid\s+)?gift[-\s]+cards?|'
+     rf'{REQUEST}{REQUEST_LINK}gift[-\s]+card\s+(?:number|code|pin)'),
+    ('Untraceable payment',
+     rf'{PAYMENT}{PAYMENT_LINK}(?:bitcoin|crypto(?:currency)?|ethereum|zelle|cash\s+app)'),
+    ('Payment pressure',
+     rf'{PAYMENT}{PAYMENT_LINK}wire\s+transfer|'
+     r'(?:move|transfer|send)\s+(?:your|the|all\s+your)\s+(?:money|savings|funds|balance)'
+     r'\s+(?:to|into)\s+(?:a|the|our)\s+(?:safe|secure|holding)\s+account'),
+    ('Emergency-relative pressure',
+     r'(?:your|our|my)\s+(?:grandson|granddaughter|daughter|son|child|relative)\s+needs?\s+bail|'
+     rf'{PAYMENT}{PAYMENT_LINK}bail'),
+    ('Secrecy pressure',
+     r"(?:do\s+not|don['\u2019]t|never)\s+(?:tell|discuss|mention)"
+     r'(?:\s+(?:this|it|about|with|your|the|call)){0,5}\s+(?:anyone|anybody|family|bank|police)|'
+     r'keep\s+(?:this|it|the\s+call)\s+(?:a\s+secret|secret|confidential|between\s+us)'),
+    ('Threat pressure',
+     r'avoid\s+arrest|'
+     r'(?:you|your\s+(?:grandson|granddaughter|son|daughter|child))'
+     r'\s+(?:will\s+be|have\s+been|was|were|is)\s+arrested|'
+     r'your\s+(?:account|card|service)\s+(?:will\s+be|is\s+being)\s+(?:locked|suspended|closed|frozen)'),
+    ('Urgency', r'(?:act|pay)\s+(?:now|immediately|right\s+now)'),
 ]
+RULES = [(label, re.compile(rf'\b(?:{pattern})\b', re.IGNORECASE)) for label, pattern in RULE_DEFINITIONS]
+CLAUSE_BOUNDARY = re.compile(r'[!?;]|\.(?!\d)|(?<!\d)\.|\b(?:but|however|instead|yet)\b', re.IGNORECASE)
+NEGATION = r"(?:never|do\s+not|don['\u2019]t|should\s+not|shouldn['\u2019]t|must\s+not|avoid)"
+NEGATED_REQUEST = re.compile(
+    rf'\b{NEGATION}[,\s]+(?:ever\s+)?(?:(?:need|have)\s+to\s+|want\s+you\s+to\s+)?$|'
+    rf'\b{NEGATION}\b[^,;.!?]*\bor\s+(?:to\s+)?$|'
+    r"\b(?:never|(?:will|would|do|does)\s+not|(?:won|wouldn|don|doesn)['\u2019]t)"
+    r'\s+(?:ever\s+)?(?:ask|request|require)\b',
+    re.IGNORECASE,
+)
+IMMEDIATE = re.compile(r'\s+(?:right\s+)?immediately\b', re.IGNORECASE)
+PROTECTED_SECRET = re.compile(
+    rf'\s+(?:(?:your|the|this|a|an)\s+)?(?:{CODE}|code|pin|password|credentials)\b',
+    re.IGNORECASE,
+)
 
 class Investigation(BaseModel):
     scenario_id: str
@@ -98,26 +140,24 @@ def scenario_by_id(identifier):
     raise HTTPException(404, 'Scenario not found')
 
 def score(transcript):
-    lowered = transcript.lower()
-    signals, seen = [], set()
-    for phrase, label in RULES:
-        for match in re.finditer(rf'(?<!\w){re.escape(phrase)}(?!\w)', lowered):
-            sentence_start = max(
-                (lowered.rfind(boundary, 0, match.start()) for boundary in '.!?;\n'),
-                default=-1,
-            ) + 1
-            context = lowered[sentence_start:match.start()]
-            if re.search(r'\b(?:we|i|our\s+\w+)\s+(?:will\s+)?never\s+(?:ask|request)\b', context):
-                continue
-            if label == 'Urgency' and phrase == 'immediately' and re.search(
-                r'\b(?:please\s+)?(?:reply|respond|confirm)\s+$', context
-            ):
-                continue
-            if label not in seen:
-                seen.add(label)
-                signals.append({'label': label, 'evidence': phrase})
-                break
-    return {'level': 'high' if len(signals) >= 2 else 'uncertain' if signals else 'low', 'signals': signals, 'method': 'Rule baseline; not a calibrated fraud probability'}
+    found = {}
+    for clause in CLAUSE_BOUNDARY.split(transcript):
+        for label, pattern in RULES:
+            for match in pattern.finditer(clause):
+                if NEGATED_REQUEST.search(clause[:match.start()]):
+                    continue
+                if label == 'Secrecy pressure' and PROTECTED_SECRET.match(clause[match.end():]):
+                    continue
+                # Keep exact transcript spans: call playback reveals these progressively.
+                found.setdefault(label, {'label': label, 'evidence': match.group()})
+                immediate = IMMEDIATE.match(clause[match.end():])
+                if label != 'Urgency' and immediate:
+                    found.setdefault('Urgency', {
+                        'label': 'Urgency',
+                        'evidence': clause[match.start():match.end() + immediate.end()],
+                    })
+    signals = list(found.values())
+    return {'level': 'high' if len(signals) >= 2 else 'uncertain' if signals else 'low', 'signals': signals, 'method': 'Context-aware rule baseline; not a calibrated fraud probability'}
 
 def fallback_summary(assessment):
     if not assessment['signals']:

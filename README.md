@@ -32,6 +32,26 @@ Open the URL Vite prints. API reference: http://127.0.0.1:8000/docs.
 
 The Protection view’s **Try your own message** feature posts to the local `POST /api/score` rule baseline; custom text is not sent to NVIDIA.
 
+## Transcript detection
+
+The message checker, live microphone transcript, scenario assessments, and investigation evidence use the same backend scorer. It recognizes bounded request patterns, including OTP/six-digit code requests, credentials, gift-card payments, remote access, money transfers, secrecy, and threats. Ordinary mentions of payment services or support software alone do not count as requests.
+
+Protective wording such as "Never share your verification code" is excluded. Negation is scoped so "We never ask for your password, but read out the six digits" still flags the later request. Evidence is quoted directly from the input so the call screen can reveal each warning at the matching point in playback.
+
+Risk thresholds are unchanged: zero distinct categories = **low**, one = **uncertain**, two or more = **high**. Repeating the same warning does not inflate the level. This is an explainable rule baseline, not a fine-tuned model, calibrated probability, or validated fraud detector; unfamiliar paraphrases, reported speech, and complex context can still be misclassified.
+
+Judge-demo examples for **Try your own message**:
+
+| Message | Expected result |
+| --- | --- |
+| Read out the six digits that just arrived on your phone. | Uncertain: verification-code request |
+| Read out the six digits. Keep this between us. | High: code request and secrecy |
+| Send $500 in Bitcoin immediately. | High: payment and urgency |
+| We will never ask you to buy gift cards or share a code. | Low |
+| Enter the six-digit code in the official app yourself. | Low |
+
+These are authored regression examples, not evidence of real-world accuracy. Low risk means no matching rules, not a guarantee of safety.
+
 ## Public demo deployment
 
 The application lives at the repository root on `main`. The build installs the backend dependencies, builds the React app, and serves the production frontend and API from one HTTPS service.
@@ -71,7 +91,7 @@ The warning offers family code-word guidance and a preview of a trusted-contact 
 ## Verification
 
 ```powershell
-backend/.venv/Scripts/python.exe -m pytest backend/test_app.py -q
+backend/.venv/Scripts/python.exe -m pytest backend -q
 npm --prefix frontend run build
 ```
 

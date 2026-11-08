@@ -5,7 +5,7 @@ import {PhoneOff, Play, Square, VolumeX, ShieldAlert, ShieldCheck, Mic, RotateCc
 function levelFor(count){return count >= 2 ? 'high' : count === 1 ? 'uncertain' : 'low';}
 const LEVEL_TEXT = {low: 'No signals yet', uncertain: 'Suspicious', high: 'Scam Likely'};
 const LOWERED_VOLUME = 0.2;
-const REQUEST_PHRASES = ['tell me your one-time code', 'read me the code', 'send me the pin', 'the code we'];
+const SECRET_REQUEST_LABELS = new Set(['Verification-code request', 'Credential request']);
 function clock(seconds){
   const s = Math.max(0, Math.floor(seconds || 0));
   return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
@@ -74,8 +74,9 @@ export default function CallScreen({scenario, clip, scoreText}){
       setFamilyAction('');
       if (!isLiveMode){
         const loweredTranscript = transcript.toLowerCase();
-        const requestIndex = REQUEST_PHRASES
-          .map(phrase => loweredTranscript.indexOf(phrase))
+        const requestIndex = scenario.assessment.signals
+          .filter(signal => SECRET_REQUEST_LABELS.has(signal.label))
+          .map(signal => loweredTranscript.indexOf(signal.evidence.toLowerCase()))
           .filter(index => index >= 0)
           .sort((a, b) => a - b)[0];
         const duration = Number.isFinite(audioRef.current?.duration)
@@ -91,7 +92,7 @@ export default function CallScreen({scenario, clip, scoreText}){
         setWarningLeadSeconds(null);
       }
     }
-  }, [callActive, elapsed, isLiveMode, level, transcript]);
+  }, [callActive, elapsed, isLiveMode, level, scenario.assessment.signals, transcript]);
 
   function reset(){
     warnedRef.current = false;
