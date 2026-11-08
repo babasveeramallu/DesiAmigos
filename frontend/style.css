@@ -27,7 +27,6 @@ em{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;letter
 header{display:flex;align-items:center;gap:20px;padding:16px 4%;background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 .brand{font-family:'Instrument Serif',serif;font-size:28px;text-decoration:none;color:var(--navy);display:flex;align-items:center;gap:8px}
 .brand svg{width:22px;height:22px;color:var(--navy)}
-.prototype{font-size:10px;font-weight:500;letter-spacing:.08em;color:var(--muted);border:1px solid var(--line);padding:4px 8px;border-radius:3px}
 nav{margin-left:auto;display:flex;gap:24px}
 nav button{background:transparent;color:var(--muted);padding:6px 0;border-radius:0;border-bottom:1px solid transparent}
 nav button:hover:not(:disabled){background:transparent;color:var(--ink)}
@@ -245,7 +244,7 @@ footer{background:var(--navy);color:rgba(255,255,255,.75);padding:28px 4%;font-s
   .statement h2{font-size:38px}.bigword{font-size:48px}
 }
 @media(max-width:760px){
-  header{flex-wrap:wrap;gap:12px;padding:14px 16px}.prototype{margin-left:auto}nav{margin:0;width:100%;gap:20px}
+  header{flex-wrap:wrap;gap:12px;padding:14px 16px}nav{margin:0;width:100%;gap:20px}
   .hero{padding:70px 16px 32px}.hero h1{font-size:44px}
   main{padding:0 16px 40px}.heading{display:block}.status{margin-bottom:12px}h1{font-size:30px}
   .statement{padding:70px 0 56px}.statement h2{font-size:30px}

@@ -38,7 +38,7 @@ function App(){
   }finally{clearTimeout(timer);}
  }
  function chooseScenario(item){setSelected(item);setResult(null);setCloud(false);setSharing(false);setNotice('');setInvestigation({state:'idle',message:''});}
- return <><header><a className="brand" href="/" aria-label="Safe Signal home"><ShieldCheck/> Safe Signal</a><span className="prototype">SYNTHETIC DEMO</span><nav><button className={view==='protect'?'selected':''} onClick={()=>setView('protect')}><Phone size={17}/>Protection</button><button className={view==='response'?'selected':''} onClick={()=>setView('response')}><Radio size={17}/>Command center</button></nav></header>
+ return <><header><a className="brand" href="/" aria-label="Safe Signal home"><ShieldCheck/> Safe Signal</a><nav><button className={view==='protect'?'selected':''} onClick={()=>setView('protect')}><Phone size={17}/>Protection</button><button className={view==='response'?'selected':''} onClick={()=>setView('response')}><Radio size={17}/>Command center</button></nav></header>
  {view==='protect'&&<div className="public-access"><div className="access"><LockKeyhole size={18}/><input type="password" autoComplete="off" value={token} onChange={event=>setToken(event.target.value)} placeholder="Presenter access key for hosted features" aria-label="Presenter access key"/></div><p className="muted">Required for hosted investigation, escalation, and the command center. Kept in memory only. Hosted investigations are limited to 5 per 10 minutes per IP.</p></div>}
  {view==='protect'&&<section className="hero">
   <div className="heroinner">
