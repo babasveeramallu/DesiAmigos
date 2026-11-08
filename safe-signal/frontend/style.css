@@ -258,3 +258,10 @@ footer{background:var(--navy);color:rgba(255,255,255,.75);padding:28px 4%;font-s
   .figuregrid strong{font-size:38px}
   footer{display:block}footer span{display:block;margin-top:8px}
 }
+
+.callmodes{display:flex;gap:8px;margin:20px 0 0}
+.callmodes button{background:transparent;color:var(--muted);border-color:var(--line)}
+.callmodes button.selected{background:var(--navy);color:white;border-color:var(--navy)}
+.live-mic-controls{padding:14px;margin:0 0 20px;background:white;border:1px solid var(--line);border-radius:4px}
+.live-mic-controls .muted{margin:8px 0 0}
+@media(max-width:760px){.callmodes{flex-wrap:wrap}}

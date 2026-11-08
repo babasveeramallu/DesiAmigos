@@ -1,6 +1,6 @@
 # Safe Signal
 
-A concept for a carrier-side, in-call warning. This prototype plays synthetic calls and shows how a private alert would work. Scam phrases are found by simple rules on the transcript. Audio is not analyzed.
+A concept for a carrier-side, in-call warning. This prototype plays synthetic calls and offers optional browser speech-to-text. A simple rule baseline checks transcript phrases only; voice characteristics are not assessed.
 
 ## Run locally
 
@@ -32,6 +32,10 @@ Open the URL Vite prints. API reference: http://127.0.0.1:8000/docs.
 
 The Protection view’s **Try your own message** feature posts to the local `POST /api/score` rule baseline; custom text is not sent to NVIDIA.
 
+## Live microphone mode
+
+The optional live-microphone mode requires explicit consent. Browser speech recognition transcribes speech; depending on browser settings, its speech service may process microphone audio. Only recognized text is sent to the local `/api/score` endpoint. Scam rules evaluate transcript text only; voice characteristics are not assessed.
+
 ## Verification
 
 ```powershell
@@ -42,7 +46,7 @@ npm --prefix frontend run build
 ## Honest boundaries
 
 - Three authored scenarios, not an evaluation dataset. No accuracy claim is justified yet.
-- Browser text-to-speech is synthetic playback, not audio analysis. No cellular audio capture, volume intervention, blocking, or carrier reporting.
+- Browser text-to-speech and the existing synthetic delivery clip are demo playback, not real calls. Optional live transcription uses browser speech recognition, which may process microphone audio through its speech service; only recognized text is sent to local rule scoring. Voice characteristics are not assessed, and the browser has no cellular-call access, real caller-volume control, blocking, or carrier reporting.
 - Nemotron chooses allowlisted tools in a bounded multi-step loop. All lookup observations are synthetic and labeled. Real hosted access is unverified until credentials are configured.
 - Only selected risk labels and a synthetic title cross the escalation boundary. Cloud investigation and responder sharing require separate consent.
 - Shared responder token is a local development access gate, not individual identity, MFA, admin enrollment, or RBAC. Do not deploy this publicly unchanged.
