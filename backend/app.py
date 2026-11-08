@@ -15,11 +15,18 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL, make_url
+
+def normalize_database_url(value: str) -> URL:
+    url = make_url(value)
+    if url.drivername in ('postgres', 'postgresql'):
+        return url.set(drivername='postgresql+psycopg')
+    return url
 
 BACKEND_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BACKEND_DIR.parent / 'frontend' / 'dist'
 load_dotenv(BACKEND_DIR / '.env')
-DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{BACKEND_DIR / "signal.db"}')
+DATABASE_URL = normalize_database_url(os.getenv('DATABASE_URL', f'sqlite:///{BACKEND_DIR / "signal.db"}'))
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 app = FastAPI(title='Safe Signal', version='0.1.0')
 INVESTIGATION_WINDOW_SECONDS = 600

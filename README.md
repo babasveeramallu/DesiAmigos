@@ -11,7 +11,7 @@ python -m venv backend/.venv
 backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
 ```
 
-Create `backend/.env` from `backend/config.env.example` using the editor. Enter secrets locally only. Set a long random `RESPONDER_TOKEN`; use it in the command-center password input. Set `DATABASE_URL` to the Tiger Data PostgreSQL URL with TLS required, using `postgresql+psycopg://` as the scheme. Blank NVIDIA key enables the explicitly labeled rules-only fallback. Never use VITE-prefixed variables for secrets.
+Create `backend/.env` from `backend/config.env.example` using the editor. Enter secrets locally only. Set a long random `RESPONDER_TOKEN`; use it in the command-center password input. Set `DATABASE_URL` to the Tiger Data PostgreSQL URL with TLS required. The backend accepts `postgres://`, `postgresql://`, and `postgresql+psycopg://`, selecting the installed psycopg driver for the first two formats while preserving credentials and connection options. Blank NVIDIA key enables the explicitly labeled rules-only fallback. Never use VITE-prefixed variables for secrets.
 
 Start backend from its directory:
 
@@ -52,7 +52,7 @@ If a build reports that `backend/requirements.txt` is missing, clear any **Root 
 
 Alternatively, create a Render **Blueprint** from branch `main`; it uses the root [render.yaml](render.yaml). Editing this file does not update a manually configured service's settings.
 
-Enter `DATABASE_URL` and `NVIDIA_API_KEY` in Render's protected environment-variable setup. Use the Tiger Data PostgreSQL connection string with TLS required and the `postgresql+psycopg://` scheme. A Blueprint generates `RESPONDER_TOKEN`; for a manual Web Service, set it to a strong random presenter key yourself. Do not commit these values or send them in chat. After deployment, share the public site URL; give the presenter key only to trusted demo operators.
+Enter `DATABASE_URL` and `NVIDIA_API_KEY` in Render's protected environment-variable setup. Use the Tiger Data PostgreSQL connection string with TLS required. Provider URLs starting with `postgres://` or `postgresql://` are automatically normalized to `postgresql+psycopg://`; existing credentials, TLS settings, and other query parameters are preserved. A Blueprint generates `RESPONDER_TOKEN`; for a manual Web Service, set it to a strong random presenter key yourself. Do not commit these values or send them in chat. After deployment, share the public site URL; give the presenter key only to trusted demo operators.
 
 Synthetic calls, microphone transcription, and rule scoring remain public. Hosted investigation, escalation, and the command center require the presenter key. Hosted investigation is limited to five requests per client IP per ten minutes in one running process. This in-memory limit and shared key are demo safeguards, not production authentication or a durable rate limiter.
 

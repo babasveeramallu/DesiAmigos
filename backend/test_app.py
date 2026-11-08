@@ -1,7 +1,43 @@
 import app
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 client = TestClient(app.app)
+
+@pytest.mark.parametrize('scheme', ['postgres', 'postgresql'])
+def test_provider_database_urls_select_psycopg(scheme):
+    url = app.normalize_database_url(
+        f'{scheme}://demo:p%40ss%3Aword%2Fvalue@db.example:5432/signal'
+        '?sslmode=require&connect_timeout=10'
+    )
+    assert url.drivername == 'postgresql+psycopg'
+    assert url.username == 'demo'
+    assert url.password == 'p@ss:word/value'
+    assert url.host == 'db.example'
+    assert url.port == 5432
+    assert url.database == 'signal'
+    assert dict(url.query) == {'sslmode': 'require', 'connect_timeout': '10'}
+    engine = create_engine(url)
+    try:
+        assert engine.dialect.name == 'postgresql'
+        assert engine.dialect.driver == 'psycopg'
+    finally:
+        engine.dispose()
+
+@pytest.mark.parametrize('value', [
+    'sqlite://',
+    'sqlite:///signal.db',
+    'postgresql+psycopg://demo:example@db.example/signal?sslmode=verify-full',
+])
+def test_explicit_database_urls_are_preserved(value):
+    assert app.normalize_database_url(value) == make_url(value)
+
+def test_invalid_database_url_does_not_fall_back():
+    with pytest.raises(ArgumentError):
+        app.normalize_database_url('not-a-database-url')
 
 def test_consent_boundaries(monkeypatch):
     monkeypatch.setenv('RESPONDER_TOKEN', 'test-only')
