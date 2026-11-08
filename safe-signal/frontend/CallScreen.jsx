@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Phone, PhoneOff, Play, Square, Volume1, ShieldAlert, Mic} from 'lucide-react';
+import {PhoneOff, Play, Square, VolumeX, ShieldAlert, ShieldCheck, Mic, RotateCcw, Signal, Wifi, BatteryFull, Radar} from 'lucide-react';
 
 // Same rule the back end uses: 2+ signals = high, 1 = uncertain, 0 = low.
 function levelFor(count){return count >= 2 ? 'high' : count === 1 ? 'uncertain' : 'low';}
@@ -13,8 +13,12 @@ function clock(seconds){
 
 // Phone-style screen that plays one synthetic call and shows the rule-based
 // risk building up as the transcript is revealed.
+function RoundButton({className, label, onClick, children}){
+  return <div className="roundwrap"><button className={'round ' + className} onClick={onClick} aria-label={label}>{children}</button><span>{label}</span></div>;
+}
+
 export default function CallScreen({scenario, clip}){
-  const [status, setStatus] = useState('idle'); // idle | playing | ended | hungup
+  const [status, setStatus] = useState('idle'); // idle | playing | ended | hungup | declined
   const [revealed, setRevealed] = useState(0); // characters of transcript shown
   const [elapsed, setElapsed] = useState(0);
   const [source, setSource] = useState(clip ? 'clip' : 'speech');
@@ -24,6 +28,7 @@ export default function CallScreen({scenario, clip}){
   const audioRef = useRef(null);
   const timerRef = useRef(null);
   const warnedRef = useRef(false);
+  const bubblesRef = useRef(null);
   const runRef = useRef(0); // ignores events from a call that was already stopped
 
   const transcript = scenario.transcript;
@@ -38,6 +43,8 @@ export default function CallScreen({scenario, clip}){
     window.speechSynthesis?.cancel();
   }
   useEffect(() => cleanup, []);
+  // Keep the newest words in view.
+  useEffect(() => {const box = bubblesRef.current; if (box) box.scrollTop = box.scrollHeight;}, [revealed]);
 
   // Show the private warning and lower the caller once the risk turns high.
   useEffect(() => {
@@ -90,57 +97,80 @@ export default function CallScreen({scenario, clip}){
   }
 
   function stop(){cleanup(); setStatus('ended');}
-  function hangUp(){cleanup(); setWarningOpen(false); setStatus('hungup');}
+  function hangUp(){cleanup(); setStatus('hungup');}
+  function decline(){cleanup(); reset(); setStatus('declined');}
 
-  const statusText = {idle: 'Incoming call', playing: 'Call in progress · ' + clock(elapsed), ended: 'Call ended', hungup: 'You hung up'}[status];
+  const statusText = {idle: 'Incoming call', playing: 'On call · ' + clock(elapsed), ended: 'Call ended · ' + clock(elapsed), hungup: 'You hung up · ' + clock(elapsed), declined: 'Declined'}[status];
+  const waiting = status === 'idle' || status === 'declined';
+  const pillLevel = waiting ? 'idle' : level;
+  const pillText = waiting ? 'Safe Signal on' : LEVEL_TEXT[level];
+  // Split what has been said so far into sentence bubbles.
+  const bubbles = shownText.match(/[^.!?]+[.!?]*/g)?.map(text => text.trim()).filter(Boolean) || [];
+  const signalCount = found.length;
 
   return <div className="callgrid">
     <div className={'phone ' + (level === 'high' && status !== 'idle' ? 'alarm' : '')} aria-label="Simulated phone call">
-      <div className="phonebar"><span>Safe Signal</span><span className={'livebadge ' + level}><ShieldAlert size={13}/>{LEVEL_TEXT[level]}</span></div>
+      <div className="statusbar"><span>9:41</span><div className="notch"/><span className="statusicons"><Signal size={14}/><Wifi size={14}/><BatteryFull size={16}/></span></div>
+      <div className="pills">
+        <span className={'statuspill ' + pillLevel}><ShieldAlert size={13}/>{pillText}</span>
+        {lowered && status === 'playing' && <span className="statuspill muted"><VolumeX size={13}/>Lowered</span>}
+      </div>
       <div className="caller">
-        <div className="avatar"><Phone size={26}/></div>
-        <strong>{scenario.caller}</strong>
-        <span>{statusText}</span>
+        <div className="avatar">?</div>
+        <strong>Unknown Caller</strong>
+        <span className="number">{scenario.caller}</span>
+        <span className={'callstate ' + status}>{statusText}</span>
       </div>
 
       {warningOpen && <div className="warning" role="alert">
-        <ShieldAlert size={22}/>
-        <strong>This call appears to be Scam Likely. Hang up.</strong>
-        {lowered && <small><Volume1 size={14}/> Caller volume lowered</small>}
-        <div className="warningactions">
-          <button className="danger" onClick={hangUp}><PhoneOff size={16}/>Hang up</button>
+        <div className="warninglabel"><ShieldAlert size={14}/>Private alert · only you see this</div>
+        <strong>{status === 'playing' ? 'This call appears to be Scam Likely. Hang up.' : 'This call was flagged as Scam Likely.'}</strong>
+        {lowered && status === 'playing' && <span className="lowered"><VolumeX size={14}/> Caller volume lowered</span>}
+        {status !== 'playing' && <small>Don't call back. Use the official number to contact your bank or provider.</small>}
+        {status === 'playing' && <div className="warningactions">
+          <button className="dark" onClick={hangUp}><PhoneOff size={16}/>Hang up</button>
           <button className="ghost" onClick={() => setWarningOpen(false)}>Keep listening</button>
-        </div>
+        </div>}
       </div>}
 
       <div className="livetranscript" aria-live="polite">
-        <small>Live transcript</small>
-        <p>{status === 'idle' ? <span className="placeholder">Press play to start the synthetic call.</span> : shownText || '…'}</p>
+        <div className="transcripthead">Live transcript</div>
+        <div className="bubbles" ref={bubblesRef}>
+          {waiting ? <p className="placeholder center">Press Answer to start. Safe Signal will show the words and check the call as it plays.</p>
+            : bubbles.length ? bubbles.map((text, index) => <div className="bubble" key={index}><small>Caller</small><p>{text}</p></div>)
+            : <p className="placeholder">Listening…</p>}
+        </div>
       </div>
 
       <div className="phonecontrols">
-        {status === 'playing'
-          ? <button className="danger round" onClick={hangUp} aria-label="Hang up"><PhoneOff size={22}/></button>
-          : <button className="round" onClick={play} aria-label={status === 'idle' ? 'Play synthetic call' : 'Replay synthetic call'}><Play size={22}/></button>}
-        {status === 'playing' && <button className="ghost" onClick={stop}><Square size={14}/>Stop</button>}
+        {status === 'playing' && <><RoundButton className="danger" label="Hang up" onClick={hangUp}><PhoneOff size={24}/></RoundButton><RoundButton className="darkround" label="Stop" onClick={stop}><Square size={20}/></RoundButton></>}
+        {waiting && <><RoundButton className="danger" label="Decline" onClick={decline}><PhoneOff size={24}/></RoundButton><RoundButton className="answer" label="Answer" onClick={play}><Play size={24}/></RoundButton></>}
+        {(status === 'ended' || status === 'hungup') && <button className="pillbutton" onClick={play}><RotateCcw size={18}/>Replay call</button>}
       </div>
     </div>
 
     <div className="livepanel">
-      <h2>Live risk</h2>
-      <div className={'meter ' + level} role="meter" aria-label="Risk level" aria-valuetext={LEVEL_TEXT[level]}>
-        <span className={level !== 'low' || status !== 'idle' ? 'on' : ''}/><span className={level !== 'low' ? 'on' : ''}/><span className={level === 'high' ? 'on' : ''}/>
+      <h2 className="paneltitle"><i className={pillLevel}/>Live risk</h2>
+      <div className="label">Current assessment</div>
+      <p className={'bigword ' + pillLevel}>{waiting ? 'Waiting…' : LEVEL_TEXT[level]}</p>
+      <div className="meter" role="meter" aria-label="Risk level" aria-valuetext={waiting ? 'Waiting' : LEVEL_TEXT[level]}>
+        <span className={'safe ' + (!waiting ? 'on' : '')}/><span className={'sus ' + (!waiting && level !== 'low' ? 'on' : '')}/><span className={'scam ' + (!waiting && level === 'high' ? 'on' : '')}/>
       </div>
-      <p className="metertext">{status === 'idle' ? 'Waiting for the call to start.' : LEVEL_TEXT[level]}</p>
-      <h3>Signals heard so far</h3>
-      {found.length ? <ul className="foundlist">{found.map(signal => <li key={signal.label}><strong>{signal.label}</strong><q>{signal.evidence}</q></li>)}</ul>
-        : <p className="muted">{status === 'idle' ? 'Nothing yet.' : 'No scam phrases heard yet. This does not prove the call is safe.'}</p>}
-      <small>Signals come from rule-based checks on the transcript. Audio is not analyzed for synthetic voices yet.</small>
+      <div className={'meterlabels ' + pillLevel}><span>Safe</span><span>Suspicious</span><span>Scam Likely</span></div>
+
+      <div className="label signalshead"><span>Detected signals</span><span>{signalCount}</span></div>
+      {found.length ? <ul className="foundlist">{found.map(signal => <li key={signal.label}>
+          <div className="signalicon"><ShieldAlert size={18}/></div>
+          <div><strong>{signal.label}</strong><small>Heard: “{signal.evidence}”</small></div>
+        </li>)}</ul>
+        : waiting ? <div className="emptysignal dashed"><Radar size={18}/><span>Answer the call to start analysis.</span></div>
+        : <div className="emptysignal"><div className="signalicon ok"><ShieldCheck size={18}/></div><div><strong>No scam phrases heard</strong><small>This does not prove the call is safe.</small></div></div>}
       {problem && <p className="playproblem" role="status">{problem}</p>}
       <div className="provenance">
         <Mic size={14}/>
         <small>{source === 'clip' && clip ? <>Audio: {clip.provenance}</> : <>Audio: browser text-to-speech reading the synthetic script. No recorded clip yet.</>}</small>
       </div>
+      <div className="provenance"><ShieldCheck size={14}/><small>Signals come from rule-based checks on the transcript. Audio is not analyzed for synthetic voices yet.</small></div>
     </div>
   </div>;
 }
