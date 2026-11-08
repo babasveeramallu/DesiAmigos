@@ -282,3 +282,13 @@ footer{background:var(--navy);color:rgba(255,255,255,.75);padding:28px 4%;font-s
 @media(max-width:760px){.callmodes{flex-wrap:wrap}}
 .warningtiming{font-weight:600;color:var(--muted)}
 .familyaction{padding:8px 10px;background:var(--green-soft);color:var(--green);border-radius:4px}
+.caller-actions{width:100%;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;border-top:1px solid rgba(255,255,255,.2);padding-top:14px}
+.caller-actions button{min-height:44px}
+.caller-actions p{width:100%;margin:2px 0;font-size:12px;line-height:1.6;color:#c5cae0;text-align:center}
+.caller-actions .playproblem{color:var(--amber)}
+.report-call{padding:26px 0;border-bottom:1px solid var(--line)}
+.report-call h2,#presenter-access{scroll-margin-top:140px}
+.report-call p{line-height:1.7;overflow-wrap:anywhere}
+.report-call a{color:var(--brand)}
+.report-call>button{margin-top:14px}
+.report-call .notice p{margin:0 0 12px}

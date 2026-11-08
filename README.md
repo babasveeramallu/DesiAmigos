@@ -34,7 +34,15 @@ The Protection view’s **Try your own message** feature posts to the local `POS
 
 ## Appearance
 
-Use the **Dark / Light** button in the header to change the theme in either Protection or Command center. The first visit follows the device's color preference; an explicit choice is saved in this browser and applied before the page renders. Only the theme is stored, never the presenter key. If browser storage is blocked, switching still works for the current page and a notice explains that it cannot be saved. The simulated phone and navy hero keep their dark product styling in both themes.
+Use the **Dark / Light** button in the header to change the theme in either Protection or Command center. The first visit follows the device's color preference; an explicit choice is saved in this browser and applied before the page renders. The theme and demo block list are stored, never the presenter key. If browser storage is blocked, switching still works for the current page and a notice explains that it cannot be saved. The simulated phone and navy hero keep their dark product styling in both themes.
+
+## Blocking and reporting demo calls
+
+- **Block demo caller** stops current scenario playback and prevents Answer/Replay for that caller. The block list survives reloads in this browser when storage is available. **Unblock demo caller** restores playback; other scenarios remain independent. Storage failures are shown beside the controls.
+- **Report this call** moves to the report consent section. Enter the presenter key, allow sharing the selected scenario's title and risk labels, then choose **Submit report**. This uses the existing authenticated `/api/escalate` endpoint, without sending the transcript or caller number. NVIDIA consent is separate and not required.
+- Confirmation and errors appear beside the submission button. **Open reported incident** selects that incident in Command center. An in-progress or successful submission cannot be submitted again from the same report form; changing scenarios resets consent.
+
+These are in-app demo actions: no cellular calls are blocked and no carrier, police, or external agency is contacted. Live microphone input cannot identify a caller and is not included in the demo report. Hosted reports use the configured database; SQLite data can be lost when Render restarts or redeploys.
 
 ## Transcript detection
 
@@ -103,7 +111,7 @@ npm --prefix frontend test
 ## Honest boundaries
 
 - Three authored scenarios, not an evaluation dataset. No accuracy claim is justified yet.
-- Browser text-to-speech and the existing synthetic delivery clip are demo playback, not real calls. Optional live transcription uses browser speech recognition, which may process microphone audio through its speech service; only recognized text is sent to local rule scoring. Voice characteristics are not assessed, and the browser has no cellular-call access, real caller-volume control, blocking, or carrier reporting.
+- Browser text-to-speech and the existing synthetic delivery clip are demo playback, not real calls. Optional live transcription uses browser speech recognition, which may process microphone audio through its speech service; only recognized text is sent to local rule scoring. Voice characteristics are not assessed, and the browser has no cellular-call access, real caller-volume control, cellular blocking, or carrier reporting.
 - Nemotron chooses allowlisted tools in a bounded multi-step loop. All lookup observations are synthetic and labeled. Real hosted access is unverified until credentials are configured.
 - Only selected risk labels and a synthetic title cross the escalation boundary. Cloud investigation and responder sharing require separate consent.
 - The shared presenter key restricts hosted demo actions, but is not individual identity, MFA, admin enrollment, or RBAC. Use only synthetic data and trusted presenters.

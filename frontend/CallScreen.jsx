@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {PhoneOff, Play, Square, VolumeX, ShieldAlert, ShieldCheck, Mic, RotateCcw, Signal, Wifi, BatteryFull, Radar} from 'lucide-react';
+import {PhoneOff, Play, Square, VolumeX, ShieldAlert, ShieldCheck, Mic, RotateCcw, Signal, Wifi, BatteryFull, Radar, Ban, Flag} from 'lucide-react';
 
 // Same rule the back end uses: 2+ signals = high, 1 = uncertain, 0 = low.
 function levelFor(count){return count >= 2 ? 'high' : count === 1 ? 'uncertain' : 'low';}
@@ -17,7 +17,7 @@ function RoundButton({className, label, onClick, children}){
   return <div className="roundwrap"><button className={'round ' + className} onClick={onClick} aria-label={label}>{children}</button><span>{label}</span></div>;
 }
 
-export default function CallScreen({scenario, clip, scoreText}){
+export default function CallScreen({scenario, clip, scoreText, blocked, blockNotice, onToggleBlock, onReport}){
   const [status, setStatus] = useState('idle'); // idle | playing | ended | hungup | declined
   const [inputMode, setInputMode] = useState('scenario');
   const [revealed, setRevealed] = useState(0); // characters of transcript shown
@@ -51,12 +51,18 @@ export default function CallScreen({scenario, clip, scoreText}){
     : scenario.assessment.signals.filter(signal => shownText.toLowerCase().includes(signal.evidence.toLowerCase()));
   const waiting = isLiveMode ? !liveListening && !liveText : status === 'idle' || status === 'declined';
   const level = isLiveMode ? liveAssessment.level : status === 'idle' ? 'low' : levelFor(found.length);
-  const callActive = isLiveMode ? liveListening : status === 'playing';
+  const callActive = isLiveMode ? liveListening : !blocked && status === 'playing';
 
   function cleanup(){
     runRef.current += 1;
     clearInterval(timerRef.current);
-    if (audioRef.current){audioRef.current.pause(); audioRef.current.onerror = null; audioRef.current = null;}
+    if (audioRef.current){
+      audioRef.current.pause();
+      audioRef.current.onerror = null;
+      audioRef.current.ontimeupdate = null;
+      audioRef.current.onended = null;
+      audioRef.current = null;
+    }
     const recognition = recognitionRef.current;
     recognitionRef.current = null;
     if (recognition) recognition.abort();
@@ -219,6 +225,7 @@ export default function CallScreen({scenario, clip, scoreText}){
   }
 
   function play(){
+    if (blocked){setProblem('Unblock this demo caller before playing its call.'); return;}
     cleanup(); reset(); setStatus('playing');
     if (!clip){playSpeech(); return;}
     setSource('clip');
@@ -240,12 +247,16 @@ export default function CallScreen({scenario, clip, scoreText}){
   function stop(){cleanup(); setStatus('ended');}
   function hangUp(){cleanup(); setStatus('hungup');}
   function decline(){cleanup(); reset(); setStatus('declined');}
+  function toggleBlock(){
+    cleanup(); reset(); setStatus('idle');
+    onToggleBlock();
+  }
 
   const statusText = isLiveMode
     ? liveListening ? 'Live · listening' : liveText ? 'Live · paused' : 'Live microphone ready'
-    : {idle: 'Incoming call', playing: 'On call · ' + clock(elapsed), ended: 'Call ended · ' + clock(elapsed), hungup: 'You hung up · ' + clock(elapsed), declined: 'Declined'}[status];
+    : blocked ? 'Blocked in this browser' : {idle: 'Incoming call', playing: 'On call · ' + clock(elapsed), ended: 'Call ended · ' + clock(elapsed), hungup: 'You hung up · ' + clock(elapsed), declined: 'Declined'}[status];
   const pillLevel = waiting ? 'idle' : level;
-  const pillText = waiting ? 'Safe Signal on' : LEVEL_TEXT[level];
+  const pillText = !isLiveMode && blocked ? 'Demo caller blocked' : waiting ? 'Safe Signal on' : LEVEL_TEXT[level];
   // Split what has been said so far into sentence bubbles.
   const bubbles = shownText.match(/[^.!?]+[.!?]*/g)?.map(text => text.trim()).filter(Boolean) || [];
   const signalCount = found.length;
@@ -290,18 +301,25 @@ export default function CallScreen({scenario, clip, scoreText}){
       <div className="livetranscript" aria-live="polite">
         <div className="transcripthead">Live transcript</div>
         <div className="bubbles" ref={bubblesRef}>
-          {waiting ? <p className="placeholder center">{isLiveMode ? 'Give microphone access, then start listening and speak a sample message.' : 'Press Answer to start. Safe Signal will show the words and check the call as it plays.'}</p>
+          {!isLiveMode && blocked ? <p className="placeholder center">Playback is blocked for this demo caller. Unblock below to answer again.</p> : waiting ? <p className="placeholder center">{isLiveMode ? 'Give microphone access, then start listening and speak a sample message.' : 'Press Answer to start. Safe Signal will show the words and check the call as it plays.'}</p>
             : bubbles.length ? bubbles.map((text, index) => <div className="bubble" key={index}><small>Caller</small><p>{text}</p></div>)
             : <p className="placeholder">Listening…</p>}
         </div>
       </div>
 
       <div className="phonecontrols">
-        {!isLiveMode && status === 'playing' && <><RoundButton className="danger" label="Hang up" onClick={hangUp}><PhoneOff size={24}/></RoundButton><RoundButton className="darkround" label="Stop" onClick={stop}><Square size={20}/></RoundButton></>}
-        {!isLiveMode && waiting && <><RoundButton className="danger" label="Decline" onClick={decline}><PhoneOff size={24}/></RoundButton><RoundButton className="answer" label="Answer" onClick={play}><Play size={24}/></RoundButton></>}
-        {!isLiveMode && (status === 'ended' || status === 'hungup') && <button className="pillbutton" onClick={play}><RotateCcw size={18}/>Replay call</button>}
+        {!isLiveMode && !blocked && status === 'playing' && <><RoundButton className="danger" label="Hang up" onClick={hangUp}><PhoneOff size={24}/></RoundButton><RoundButton className="darkround" label="Stop" onClick={stop}><Square size={20}/></RoundButton></>}
+        {!isLiveMode && !blocked && waiting && <><RoundButton className="danger" label="Decline" onClick={decline}><PhoneOff size={24}/></RoundButton><RoundButton className="answer" label="Answer" onClick={play}><Play size={24}/></RoundButton></>}
+        {!isLiveMode && !blocked && (status === 'ended' || status === 'hungup') && <button className="pillbutton" onClick={play}><RotateCcw size={18}/>Replay call</button>}
         {isLiveMode && <button className="pillbutton" onClick={liveListening ? stopLive : startLive} disabled={liveStarting || (!liveConsent && !liveListening)}>{liveListening ? 'Stop listening' : liveStarting ? 'Starting microphone…' : liveText ? 'Continue listening' : 'Start microphone'}</button>}
       </div>
+      {!isLiveMode && <div className="caller-actions">
+        <button className="ghost" onClick={toggleBlock}><Ban size={16}/>{blocked?'Unblock demo caller':'Block demo caller'}</button>
+        <button className="ghost" onClick={onReport}><Flag size={16}/>Report this call</button>
+        <p>Blocks only this demo caller in this browser, not real phone calls.</p>
+        {blocked && <p role="status">Caller blocked. Unblock any time to resume demo playback.</p>}
+        {blockNotice && <p className="playproblem" role="status">{blockNotice}</p>}
+      </div>}
     </div>
 
     <div className="livepanel">
