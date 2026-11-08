@@ -10,7 +10,9 @@ const INVESTIGATION_TIMEOUT_MS = 90000;
 function App(){
  const [view,setView]=useState('protect'),[scenarios,setScenarios]=useState([]),[selected,setSelected]=useState(null),[health,setHealth]=useState({}),[error,setError]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null),[cloud,setCloud]=useState(false),[sharing,setSharing]=useState(false),[token,setToken]=useState(''),[incidents,setIncidents]=useState([]),[active,setActive]=useState(null),[body,setBody]=useState(''),[kind,setKind]=useState('action'),[brief,setBrief]=useState(null),[notice,setNotice]=useState(''),[clips,setClips]=useState({}),[investigation,setInvestigation]=useState({state:'idle',message:''}),[custom,setCustom]=useState(''),[customResult,setCustomResult]=useState(null);
  async function api(path,options={}){
-  const response=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...options.headers}});
+  const protectedRequest=path==='/investigate'||path==='/escalate'||path.startsWith('/incidents');
+  if(protectedRequest&&!token.trim())throw Error('Enter the presenter access key to use hosted investigation and responder features.');
+  const response=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...(protectedRequest?{Authorization:'Bearer '+token}:{}),...options.headers}});
   let data=null;try{data=await response.json();}catch{data=null;}
   // An empty reply usually means the back end isn't running.
   if(data===null)throw Error(response.ok?'The back end sent an unreadable reply.':'Cannot reach the Safe Signal back end. Make sure it is running on port 8000.');
@@ -37,6 +39,7 @@ function App(){
  }
  function chooseScenario(item){setSelected(item);setResult(null);setCloud(false);setSharing(false);setNotice('');setInvestigation({state:'idle',message:''});}
  return <><header><a className="brand" href="/" aria-label="Safe Signal home"><ShieldCheck/> Safe Signal</a><span className="prototype">SYNTHETIC DEMO</span><nav><button className={view==='protect'?'selected':''} onClick={()=>setView('protect')}><Phone size={17}/>Protection</button><button className={view==='response'?'selected':''} onClick={()=>setView('response')}><Radio size={17}/>Command center</button></nav></header>
+ {view==='protect'&&<div className="public-access"><div className="access"><LockKeyhole size={18}/><input type="password" autoComplete="off" value={token} onChange={event=>setToken(event.target.value)} placeholder="Presenter access key for hosted features" aria-label="Presenter access key"/></div><p className="muted">Required for hosted investigation, escalation, and the command center. Kept in memory only. Hosted investigations are limited to 5 per 10 minutes per IP.</p></div>}
  {view==='protect'&&<section className="hero">
   <div className="heroinner">
    <h1>Warn people <em>while</em> the scam call is still happening</h1>

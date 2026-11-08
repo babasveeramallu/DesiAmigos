@@ -219,6 +219,8 @@ details p{line-height:1.7;color:var(--muted)}
 /* Command center */
 .access{display:flex;gap:12px;align-items:center}
 .access input{flex:1;min-width:0}
+.public-access{max-width:1100px;margin:18px auto 0;padding:16px 24px;background:var(--soft)}
+.public-access .muted{margin:8px 0 0}
 input:not([type=checkbox]),select,textarea{padding:11px 13px;border:1px solid var(--line);border-radius:4px;background:white;color:var(--ink)}
 textarea{width:100%;min-height:100px;resize:vertical}
 form{padding:22px 0;display:grid;gap:14px}

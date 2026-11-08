@@ -3,20 +3,30 @@ import json
 import os
 import re
 import secrets
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
 from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, text
 
 BACKEND_DIR = Path(__file__).resolve().parent
+FRONTEND_DIST = BACKEND_DIR.parent / 'frontend' / 'dist'
 load_dotenv(BACKEND_DIR / '.env')
 DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{BACKEND_DIR / "signal.db"}')
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 app = FastAPI(title='Safe Signal', version='0.1.0')
+INVESTIGATION_WINDOW_SECONDS = 600
+INVESTIGATION_LIMIT = 5
+MAX_TRACKED_CLIENTS = 1024
+_investigation_attempts = defaultdict(deque)
+_investigation_lock = Lock()
 
 with engine.begin() as connection:
     connection.execute(text('CREATE TABLE IF NOT EXISTS events (id VARCHAR(64) PRIMARY KEY, incident VARCHAR(64) NOT NULL, body TEXT NOT NULL, actor VARCHAR(80) NOT NULL, kind VARCHAR(30) NOT NULL, created TEXT NOT NULL, prev_hash VARCHAR(64) NOT NULL, entry_hash VARCHAR(64) NOT NULL)'))
@@ -136,6 +146,28 @@ def verify(events):
         previous = event['entry_hash']
     return True
 
+def enforce_investigation_limit(request):
+    now = time.monotonic()
+    cutoff = now - INVESTIGATION_WINDOW_SECONDS
+    client = request.client.host if request.client else 'unknown'
+    with _investigation_lock:
+        for address, attempts in list(_investigation_attempts.items()):
+            while attempts and attempts[0] <= cutoff:
+                attempts.popleft()
+            if not attempts:
+                del _investigation_attempts[address]
+        if client not in _investigation_attempts and len(_investigation_attempts) >= MAX_TRACKED_CLIENTS:
+            raise HTTPException(503, 'Hosted investigations are temporarily busy. Try again shortly.')
+        attempts = _investigation_attempts[client]
+        if len(attempts) >= INVESTIGATION_LIMIT:
+            retry_after = max(1, int(INVESTIGATION_WINDOW_SECONDS - (now - attempts[0])))
+            raise HTTPException(
+                429,
+                f'Investigation limit reached. Try again in about {retry_after} seconds.',
+                headers={'Retry-After': str(retry_after)},
+            )
+        attempts.append(now)
+
 @app.get('/api/health')
 def health():
     return {'database': 'Tiger Data / PostgreSQL' if engine.dialect.name == 'postgresql' else 'Local SQLite demo', 'ai': 'NVIDIA configured, access unverified' if os.getenv('NVIDIA_API_KEY') else 'Rules-only demo', 'lookups': 'Synthetic fixtures'}
@@ -148,11 +180,12 @@ def scenarios():
 def score_text(payload: ScoreInput):
     return score(payload.text)
 
-@app.post('/api/investigate')
-def investigate(payload: Investigation):
+@app.post('/api/investigate', dependencies=[Depends(authenticated)])
+def investigate(payload: Investigation, request: Request):
     if not payload.consent:
         raise HTTPException(403, 'Consent required before cloud investigation')
     scenario = scenario_by_id(payload.scenario_id)
+    enforce_investigation_limit(request)
     assessment = score(scenario['transcript'])
     checks = {'reputation': {'source': 'synthetic fixture', 'reports': 8 if scenario['id'] != 'delivery' else 0}, 'identity': {'source': 'synthetic fixture', 'verified': scenario['id'] == 'delivery'}, 'evidence': assessment}
     result = {'assessment': assessment, 'checks': checks, 'summary': fallback_summary(assessment), 'mode': 'Rules-only demo', 'steps': []}
@@ -182,7 +215,7 @@ def investigate(payload: Investigation):
         result['mode'] = 'NVIDIA unavailable; rules-only fallback'
     return result
 
-@app.post('/api/escalate')
+@app.post('/api/escalate', dependencies=[Depends(authenticated)])
 def escalate(payload: Escalation):
     if not payload.consent:
         raise HTTPException(403, 'Explicit sharing consent required')
@@ -210,3 +243,6 @@ def brief(incident: str):
     if not events:
         raise HTTPException(404, 'Incident not found')
     return {'verified': verify(events), 'head': events[-1]['entry_hash'], 'done': [event for event in events if event['kind'] == 'action'], 'open': [event for event in events if event['kind'] == 'question'], 'risky': [event for event in events if event['kind'] in ['finding', 'scope']], 'next': 'Assign an owner, confirm affected scope, and record the next shift acknowledgment.'}
+
+if FRONTEND_DIST.is_dir():
+    app.mount('/', StaticFiles(directory=FRONTEND_DIST, html=True), name='frontend')

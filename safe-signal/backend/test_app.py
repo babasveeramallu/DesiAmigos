@@ -3,9 +3,51 @@ from fastapi.testclient import TestClient
 
 client = TestClient(app.app)
 
-def test_consent_boundaries():
-    assert client.post('/api/investigate', json={'scenario_id': 'bank', 'consent': False}).status_code == 403
-    assert client.post('/api/escalate', json={'scenario_id': 'bank', 'consent': False}).status_code == 403
+def test_consent_boundaries(monkeypatch):
+    monkeypatch.setenv('RESPONDER_TOKEN', 'test-only')
+    headers = {'Authorization': 'Bearer test-only'}
+    assert client.post('/api/investigate', json={'scenario_id': 'bank', 'consent': False}, headers=headers).status_code == 403
+    assert client.post('/api/escalate', json={'scenario_id': 'bank', 'consent': False}, headers=headers).status_code == 403
+
+def test_hosted_investigation_and_escalation_require_presenter_access(monkeypatch):
+    monkeypatch.setenv('RESPONDER_TOKEN', 'test-only')
+    monkeypatch.setenv('NVIDIA_API_KEY', '')
+    headers = {'Authorization': 'Bearer test-only'}
+
+    assert client.post('/api/investigate', json={'scenario_id': 'bank', 'consent': True}).status_code == 401
+    assert client.post('/api/escalate', json={'scenario_id': 'bank', 'consent': True}).status_code == 401
+    assert client.post(
+        '/api/investigate',
+        json={'scenario_id': 'bank', 'consent': True},
+        headers=headers,
+    ).status_code == 200
+    assert client.post(
+        '/api/escalate',
+        json={'scenario_id': 'bank', 'consent': True},
+        headers=headers,
+    ).status_code == 200
+
+def test_hosted_investigation_limit(monkeypatch):
+    monkeypatch.setenv('RESPONDER_TOKEN', 'test-only')
+    monkeypatch.setenv('NVIDIA_API_KEY', '')
+    app._investigation_attempts.clear()
+    headers = {'Authorization': 'Bearer test-only'}
+
+    for _ in range(app.INVESTIGATION_LIMIT):
+        response = client.post(
+            '/api/investigate',
+            json={'scenario_id': 'bank', 'consent': True},
+            headers=headers,
+        )
+        assert response.status_code == 200
+
+    limited = client.post(
+        '/api/investigate',
+        json={'scenario_id': 'bank', 'consent': True},
+        headers=headers,
+    )
+    assert limited.status_code == 429
+    assert 'Retry-After' in limited.headers
 
 def test_legitimate_and_scam():
     assert app.score(app.SCENARIOS[0]['transcript'])['level'] == 'high'
@@ -60,7 +102,7 @@ def test_custom_message_rules_suppress_clear_benign_context():
 def test_access_and_chain(monkeypatch):
     monkeypatch.setenv('RESPONDER_TOKEN', 'test-only')
     assert client.get('/api/incidents').status_code == 401
-    response = client.post('/api/escalate', json={'scenario_id': 'bank', 'consent': True})
+    response = client.post('/api/escalate', json={'scenario_id': 'bank', 'consent': True}, headers={'Authorization': 'Bearer test-only'})
     identifier = response.json()['incident']
     events = app.read_events(identifier)
     assert app.verify(events)
