@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +38,16 @@ RULES = [
     ('act now', 'Urgency'),
     ('social security number', 'Sensitive-info request'),
     ('wire transfer', 'Payment pressure'),
+    ('gift cards', 'Gift-card payment'),
+    ('send me the pin', 'Credential request'),
+    ('the code we', 'Verification-code request'),
+    ('anydesk', 'Remote-access request'),
+    ('teamviewer', 'Remote-access request'),
+    ('bitcoin', 'Untraceable payment'),
+    ('zelle', 'Untraceable payment'),
+    ('bail', 'Emergency-relative pressure'),
+    ('avoid arrest', 'Threat pressure'),
+    ('arrested', 'Threat pressure'),
 ]
 
 class Investigation(BaseModel):
@@ -73,9 +84,22 @@ def score(transcript):
     lowered = transcript.lower()
     signals, seen = [], set()
     for phrase, label in RULES:
-        if phrase in lowered and label not in seen:
-            seen.add(label)
-            signals.append({'label': label, 'evidence': phrase})
+        for match in re.finditer(rf'(?<!\w){re.escape(phrase)}(?!\w)', lowered):
+            sentence_start = max(
+                (lowered.rfind(boundary, 0, match.start()) for boundary in '.!?;\n'),
+                default=-1,
+            ) + 1
+            context = lowered[sentence_start:match.start()]
+            if re.search(r'\b(?:we|i|our\s+\w+)\s+(?:will\s+)?never\s+(?:ask|request)\b', context):
+                continue
+            if label == 'Urgency' and phrase == 'immediately' and re.search(
+                r'\b(?:please\s+)?(?:reply|respond|confirm)\s+$', context
+            ):
+                continue
+            if label not in seen:
+                seen.add(label)
+                signals.append({'label': label, 'evidence': phrase})
+                break
     return {'level': 'high' if len(signals) >= 2 else 'uncertain' if signals else 'low', 'signals': signals, 'method': 'Rule baseline; not a calibrated fraud probability'}
 
 def fallback_summary(assessment):
