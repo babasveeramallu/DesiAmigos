@@ -30,6 +30,8 @@ npm run dev
 
 Open the URL Vite prints. API reference: http://127.0.0.1:8000/docs.
 
+The Protection view’s **Try your own message** feature posts to the local `POST /api/score` rule baseline; custom text is not sent to NVIDIA.
+
 ## Verification
 
 ```powershell

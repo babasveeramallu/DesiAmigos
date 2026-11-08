@@ -26,9 +26,25 @@ SCENARIOS = [
     {'id': 'support', 'title': 'Unexpected technical support', 'caller': '+1 202-555-0163', 'category': 'Remote-access fraud', 'transcript': 'I am from technical support. Install remote access software and send gift cards to remove the virus. You must act immediately.'},
 ]
 
+RULES = [
+    ('tell me your one-time code', 'Verification-code request'),
+    ('read me the code', 'Verification-code request'),
+    ('gift card', 'Gift-card payment'),
+    ('remote access', 'Remote-access request'),
+    ('do not tell anyone', 'Secrecy pressure'),
+    ("don't tell anyone", 'Secrecy pressure'),
+    ('immediately', 'Urgency'),
+    ('act now', 'Urgency'),
+    ('social security number', 'Sensitive-info request'),
+    ('wire transfer', 'Payment pressure'),
+]
+
 class Investigation(BaseModel):
     scenario_id: str
     consent: bool
+
+class ScoreInput(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
 
 class Escalation(BaseModel):
     scenario_id: str
@@ -55,9 +71,10 @@ def scenario_by_id(identifier):
 
 def score(transcript):
     lowered = transcript.lower()
-    signals = []
-    for phrase, label in [('tell me your one-time code', 'Verification-code request'), ('gift cards', 'Gift-card payment'), ('remote access', 'Remote-access request'), ('do not tell anyone', 'Secrecy pressure'), ('immediately', 'Urgency')]:
-        if phrase in lowered:
+    signals, seen = [], set()
+    for phrase, label in RULES:
+        if phrase in lowered and label not in seen:
+            seen.add(label)
             signals.append({'label': label, 'evidence': phrase})
     return {'level': 'high' if len(signals) >= 2 else 'uncertain' if signals else 'low', 'signals': signals, 'method': 'Rule baseline; not a calibrated fraud probability'}
 
@@ -102,6 +119,10 @@ def health():
 @app.get('/api/scenarios')
 def scenarios():
     return [{**scenario, 'assessment': score(scenario['transcript'])} for scenario in SCENARIOS]
+
+@app.post('/api/score')
+def score_text(payload: ScoreInput):
+    return score(payload.text)
 
 @app.post('/api/investigate')
 def investigate(payload: Investigation):
