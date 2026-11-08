@@ -36,6 +36,8 @@ The Protection view’s **Try your own message** feature posts to the local `POS
 
 The optional live-microphone mode requires explicit consent. Browser speech recognition transcribes speech; depending on browser settings, its speech service may process microphone audio. Only recognized text is sent to the local `/api/score` endpoint. Scam rules evaluate transcript text only; voice characteristics are not assessed.
 
+The in-call warning displays an approximate lead time based on transcript position and recorded clip duration; it is a playback estimate, not a measured detection benchmark.
+
 ## Verification
 
 ```powershell

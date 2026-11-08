@@ -5,6 +5,7 @@ import {PhoneOff, Play, Square, VolumeX, ShieldAlert, ShieldCheck, Mic, RotateCc
 function levelFor(count){return count >= 2 ? 'high' : count === 1 ? 'uncertain' : 'low';}
 const LEVEL_TEXT = {low: 'No signals yet', uncertain: 'Suspicious', high: 'Scam Likely'};
 const LOWERED_VOLUME = 0.2;
+const REQUEST_PHRASES = ['tell me your one-time code', 'read me the code', 'send me the pin', 'the code we'];
 function clock(seconds){
   const s = Math.max(0, Math.floor(seconds || 0));
   return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
@@ -25,6 +26,7 @@ export default function CallScreen({scenario, clip, scoreText}){
   const [problem, setProblem] = useState('');
   const [warningOpen, setWarningOpen] = useState(false);
   const [lowered, setLowered] = useState(false);
+  const [warningLeadSeconds, setWarningLeadSeconds] = useState(null);
   const [liveConsent, setLiveConsent] = useState(false);
   const [liveListening, setLiveListening] = useState(false);
   const [liveText, setLiveText] = useState('');
@@ -68,7 +70,22 @@ export default function CallScreen({scenario, clip, scoreText}){
       warnedRef.current = true;
       setWarningOpen(true);
       if (!isLiveMode){
+        const loweredTranscript = transcript.toLowerCase();
+        const requestIndex = REQUEST_PHRASES
+          .map(phrase => loweredTranscript.indexOf(phrase))
+          .filter(index => index >= 0)
+          .sort((a, b) => a - b)[0];
+        const duration = Number.isFinite(audioRef.current?.duration)
+          ? audioRef.current.duration
+          : transcript.length / 15;
+        if (requestIndex !== undefined && duration > 0){
+          setWarningLeadSeconds((requestIndex / transcript.length) * duration - elapsed);
+        }else{
+          setWarningLeadSeconds(null);
+        }
         if (audioRef.current){audioRef.current.volume = LOWERED_VOLUME; setLowered(true);}
+      }else{
+        setWarningLeadSeconds(null);
       }
     }
   }, [callActive, elapsed, isLiveMode, level, transcript]);
@@ -77,6 +94,7 @@ export default function CallScreen({scenario, clip, scoreText}){
     warnedRef.current = false;
     setWarningOpen(false);
     setLowered(false);
+    setWarningLeadSeconds(null);
     setRevealed(0);
     setElapsed(0);
     setProblem('');
@@ -237,6 +255,9 @@ export default function CallScreen({scenario, clip, scoreText}){
       {warningOpen && <div className="warning" role="alert">
         <div className="warninglabel"><ShieldAlert size={14}/>Private alert · only you see this</div>
         <strong>{callActive ? 'This call appears to be Scam Likely. Hang up.' : 'This call was flagged as Scam Likely.'}</strong>
+        {warningLeadSeconds !== null && <small className="warningtiming">{warningLeadSeconds >= 0
+          ? `Approx. ${warningLeadSeconds.toFixed(1)}s before the code request · playback estimate`
+          : `Approx. ${Math.abs(warningLeadSeconds).toFixed(1)}s after the code request · playback estimate`}</small>}
         {lowered && callActive && <span className="lowered"><VolumeX size={14}/> Caller recording volume lowered</span>}
         {!callActive && <small>Don't call back. Use the official number to contact your bank or provider.</small>}
         {callActive && <div className="warningactions">
