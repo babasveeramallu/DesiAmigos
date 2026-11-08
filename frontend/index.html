@@ -1,2 +1,23 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Safe Signal</title></head><body><div id="root"></div><script type="module" src="/src.jsx"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safe Signal</title>
+  <script id="theme-init">
+    (() => {
+      let theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      try {
+        const saved = localStorage.getItem('safe-signal-theme');
+        if (saved === 'light' || saved === 'dark') theme = saved;
+        else if (saved !== null) console.warn('Invalid saved theme; using device appearance.');
+      } catch (error) {
+        if (!(error instanceof DOMException)) throw error;
+        console.warn('Theme preference unavailable; using device appearance.', error.name);
+      }
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+</head>
+<body><div id="root"></div><script type="module" src="/src.jsx"></script></body>
+</html>

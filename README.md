@@ -32,6 +32,10 @@ Open the URL Vite prints. API reference: http://127.0.0.1:8000/docs.
 
 The Protection view’s **Try your own message** feature posts to the local `POST /api/score` rule baseline; custom text is not sent to NVIDIA.
 
+## Appearance
+
+Use the **Dark / Light** button in the header to change the theme in either Protection or Command center. The first visit follows the device's color preference; an explicit choice is saved in this browser and applied before the page renders. Only the theme is stored, never the presenter key. If browser storage is blocked, switching still works for the current page and a notice explains that it cannot be saved. The simulated phone and navy hero keep their dark product styling in both themes.
+
 ## Transcript detection
 
 The message checker, live microphone transcript, scenario assessments, and investigation evidence use the same backend scorer. It recognizes bounded request patterns, including OTP/six-digit code requests, credentials, gift-card payments, remote access, money transfers, secrecy, and threats. Ordinary mentions of payment services or support software alone do not count as requests.
@@ -93,6 +97,7 @@ The warning offers family code-word guidance and a preview of a trusted-contact 
 ```powershell
 backend/.venv/Scripts/python.exe -m pytest backend -q
 npm --prefix frontend run build
+npm --prefix frontend test
 ```
 
 ## Honest boundaries

@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {ShieldCheck, Phone, Radio, Search, ArrowUpRight, Send, RefreshCw, LockKeyhole} from 'lucide-react';
+import {ShieldCheck, Phone, Radio, Search, ArrowUpRight, Send, RefreshCw, LockKeyhole, Sun, Moon} from 'lucide-react';
 import CallScreen from './CallScreen.jsx';
 import InvestigationResult from './InvestigationResult.jsx';
 import './style.css';
@@ -8,6 +8,18 @@ import './style.css';
 const INVESTIGATION_TIMEOUT_MS = 90000;
 
 function App(){
+ const [theme,setTheme]=useState(()=>document.documentElement.dataset.theme),[themeNotice,setThemeNotice]=useState('');
+ function toggleTheme(){
+  const next=theme==='dark'?'light':'dark';
+  document.documentElement.dataset.theme=next;
+  setTheme(next);setThemeNotice('');
+  try{localStorage.setItem('safe-signal-theme',next);}
+  catch(error){
+   if(!(error instanceof DOMException))throw error;
+   console.warn('Theme preference could not be saved.',error.name);
+   setThemeNotice('Theme applied for this visit, but could not be saved in this browser.');
+  }
+ }
  const [view,setView]=useState('protect'),[scenarios,setScenarios]=useState([]),[selected,setSelected]=useState(null),[health,setHealth]=useState({}),[error,setError]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null),[cloud,setCloud]=useState(false),[sharing,setSharing]=useState(false),[token,setToken]=useState(''),[incidents,setIncidents]=useState([]),[active,setActive]=useState(null),[body,setBody]=useState(''),[kind,setKind]=useState('action'),[brief,setBrief]=useState(null),[notice,setNotice]=useState(''),[clips,setClips]=useState({}),[investigation,setInvestigation]=useState({state:'idle',message:''}),[custom,setCustom]=useState(''),[customResult,setCustomResult]=useState(null);
  async function api(path,options={}){
   const protectedRequest=path==='/investigate'||path==='/escalate'||path.startsWith('/incidents');
@@ -38,7 +50,8 @@ function App(){
   }finally{clearTimeout(timer);}
  }
  function chooseScenario(item){setSelected(item);setResult(null);setCloud(false);setSharing(false);setNotice('');setInvestigation({state:'idle',message:''});}
- return <><header><a className="brand" href="/" aria-label="Safe Signal home"><ShieldCheck/> Safe Signal</a><nav><button className={view==='protect'?'selected':''} onClick={()=>setView('protect')}><Phone size={17}/>Protection</button><button className={view==='response'?'selected':''} onClick={()=>setView('response')}><Radio size={17}/>Command center</button></nav></header>
+ return <><header><a className="brand" href="/" aria-label="Safe Signal home"><ShieldCheck/> Safe Signal</a><nav><button className={view==='protect'?'selected':''} onClick={()=>setView('protect')}><Phone size={17}/>Protection</button><button className={view==='response'?'selected':''} onClick={()=>setView('response')}><Radio size={17}/>Command center</button></nav><button className="theme-toggle" onClick={toggleTheme} aria-label={'Switch to '+(theme==='dark'?'light':'dark')+' theme'}>{theme==='dark'?<Sun size={17} aria-hidden="true"/>:<Moon size={17} aria-hidden="true"/>}{theme==='dark'?'Light':'Dark'}</button></header>
+ {themeNotice&&<p className="theme-notice" role="status">{themeNotice}</p>}
  {view==='protect'&&<div className="public-access"><div className="access"><LockKeyhole size={18}/><input type="password" autoComplete="off" value={token} onChange={event=>setToken(event.target.value)} placeholder="Presenter access key for hosted features" aria-label="Presenter access key"/></div><p className="muted">Required for hosted investigation, escalation, and the command center. Kept in memory only. Hosted investigations are limited to 5 per 10 minutes per IP.</p></div>}
  {view==='protect'&&<section className="hero">
   <div className="heroinner">
