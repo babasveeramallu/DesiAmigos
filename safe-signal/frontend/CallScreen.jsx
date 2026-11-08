@@ -29,6 +29,7 @@ export default function CallScreen({scenario, clip, scoreText}){
   const [warningLeadSeconds, setWarningLeadSeconds] = useState(null);
   const [liveConsent, setLiveConsent] = useState(false);
   const [liveListening, setLiveListening] = useState(false);
+  const [liveStarting, setLiveStarting] = useState(false);
   const [liveText, setLiveText] = useState('');
   const [liveAssessment, setLiveAssessment] = useState({level: 'low', signals: []});
   const [liveProblem, setLiveProblem] = useState('');
@@ -108,6 +109,7 @@ export default function CallScreen({scenario, clip, scoreText}){
     reset();
     setSource(mode === 'live' ? 'live' : clip ? 'clip' : 'speech');
     setStatus('idle');
+    setLiveStarting(false);
     setLiveListening(false);
     setLiveText('');
     setLiveProblem('');
@@ -135,7 +137,11 @@ export default function CallScreen({scenario, clip, scoreText}){
     recognition.lang = 'en-US';
     recognitionRef.current = recognition;
     let finalText = liveTranscriptRef.current;
-    recognition.onstart = () => setLiveListening(true);
+    setLiveStarting(true);
+    recognition.onstart = () => {
+      setLiveStarting(false);
+      setLiveListening(true);
+    };
     recognition.onresult = event => {
       if (recognitionRef.current !== recognition) return;
       let interimText = '';
@@ -145,12 +151,15 @@ export default function CallScreen({scenario, clip, scoreText}){
         else interimText += result[0].transcript;
       }
       liveTranscriptRef.current = finalText;
-      const currentText = (finalText + interimText).trim();
+      const currentText = (finalText + interimText).trim().slice(0, 1000);
       setLiveText(currentText);
       if (currentText){
         const requestId = ++liveScoreRequestRef.current;
         scoreText(currentText).then(assessment => {
-          if (requestId === liveScoreRequestRef.current) setLiveAssessment(assessment);
+          if (requestId === liveScoreRequestRef.current){
+            setLiveAssessment(assessment);
+            setLiveProblem('');
+          }
         }).catch(error => {
           if (requestId === liveScoreRequestRef.current) setLiveProblem(error.message);
         });
@@ -159,11 +168,13 @@ export default function CallScreen({scenario, clip, scoreText}){
     recognition.onerror = event => {
       if (recognitionRef.current !== recognition) return;
       if (event.error !== 'no-speech') setLiveProblem('Speech recognition error: ' + event.error);
+      setLiveStarting(false);
       setLiveListening(false);
     };
     recognition.onend = () => {
       if (recognitionRef.current === recognition){
         recognitionRef.current = null;
+        setLiveStarting(false);
         setLiveListening(false);
       }
     };
@@ -171,6 +182,7 @@ export default function CallScreen({scenario, clip, scoreText}){
       recognition.start();
     }catch(error){
       recognitionRef.current = null;
+      setLiveStarting(false);
       setLiveProblem('Could not start microphone transcription: ' + error.message);
     }
   }
@@ -181,6 +193,7 @@ export default function CallScreen({scenario, clip, scoreText}){
       recognitionRef.current = null;
       recognition.stop();
     }
+    setLiveStarting(false);
     setLiveListening(false);
   }
 
@@ -242,7 +255,7 @@ export default function CallScreen({scenario, clip, scoreText}){
     <button className={isLiveMode ? 'selected' : ''} onClick={() => selectInputMode('live')}><Mic size={16}/>Live microphone</button>
   </div>
   <div className="callgrid">
-    <div className={'phone ' + (level === 'high' && !waiting ? 'alarm' : '')} aria-label="Simulated phone call">
+    <div className={'phone ' + (level === 'high' && !waiting ? 'alarm' : '')} aria-label={isLiveMode ? 'Live microphone transcript demo' : 'Simulated phone call'}>
       <div className="statusbar"><span>9:41</span><div className="notch"/><span className="statusicons"><Signal size={14}/><Wifi size={14}/><BatteryFull size={16}/></span></div>
       <div className="pills">
         <span className={'statuspill ' + pillLevel}><ShieldAlert size={13}/>{pillText}</span>
@@ -286,7 +299,7 @@ export default function CallScreen({scenario, clip, scoreText}){
         {!isLiveMode && status === 'playing' && <><RoundButton className="danger" label="Hang up" onClick={hangUp}><PhoneOff size={24}/></RoundButton><RoundButton className="darkround" label="Stop" onClick={stop}><Square size={20}/></RoundButton></>}
         {!isLiveMode && waiting && <><RoundButton className="danger" label="Decline" onClick={decline}><PhoneOff size={24}/></RoundButton><RoundButton className="answer" label="Answer" onClick={play}><Play size={24}/></RoundButton></>}
         {!isLiveMode && (status === 'ended' || status === 'hungup') && <button className="pillbutton" onClick={play}><RotateCcw size={18}/>Replay call</button>}
-        {isLiveMode && <button className="pillbutton" onClick={liveListening ? stopLive : startLive} disabled={!liveConsent && !liveListening}>{liveListening ? 'Stop listening' : liveText ? 'Continue listening' : 'Start microphone'}</button>}
+        {isLiveMode && <button className="pillbutton" onClick={liveListening ? stopLive : startLive} disabled={liveStarting || (!liveConsent && !liveListening)}>{liveListening ? 'Stop listening' : liveStarting ? 'Starting microphone…' : liveText ? 'Continue listening' : 'Start microphone'}</button>}
       </div>
     </div>
 
@@ -297,7 +310,7 @@ export default function CallScreen({scenario, clip, scoreText}){
           setLiveConsent(event.target.checked);
           if (!event.target.checked) stopLive();
         }}/>I consent to microphone access and browser speech transcription.</label>
-        <p className="muted">Requires Chrome or Edge. Your browser may process audio through its speech service; only the transcript is sent to this app for local rule scoring.</p>
+        <p className="muted">Requires Chrome or Edge. Your browser may process audio through its speech service; only the transcript is sent to this app for local rule scoring. Scoring is limited to 1,000 characters per sample.</p>
         {liveProblem && <p className="playproblem" role="alert">{liveProblem}</p>}
       </section>}
       <div className="label">Current assessment</div>
