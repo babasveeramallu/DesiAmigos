@@ -1,6 +1,6 @@
 # Safe Signal
 
-Hackathon scaffold combining synthetic scam protection with consent-based incident response. This is not a production-secure system or carrier integration.
+A concept for a carrier-side, in-call warning. This prototype plays synthetic calls and shows how a private alert would work. Scam phrases are found by simple rules on the transcript. Audio is not analyzed.
 
 ## Run locally
 
