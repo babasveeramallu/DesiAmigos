@@ -32,6 +32,7 @@ export default function CallScreen({scenario, clip, scoreText}){
   const [liveText, setLiveText] = useState('');
   const [liveAssessment, setLiveAssessment] = useState({level: 'low', signals: []});
   const [liveProblem, setLiveProblem] = useState('');
+  const [familyAction, setFamilyAction] = useState('');
   const audioRef = useRef(null);
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
@@ -69,6 +70,7 @@ export default function CallScreen({scenario, clip, scoreText}){
     if (callActive && level === 'high' && !warnedRef.current){
       warnedRef.current = true;
       setWarningOpen(true);
+      setFamilyAction('');
       if (!isLiveMode){
         const loweredTranscript = transcript.toLowerCase();
         const requestIndex = REQUEST_PHRASES
@@ -95,6 +97,7 @@ export default function CallScreen({scenario, clip, scoreText}){
     setWarningOpen(false);
     setLowered(false);
     setWarningLeadSeconds(null);
+    setFamilyAction('');
     setRevealed(0);
     setElapsed(0);
     setProblem('');
@@ -264,7 +267,10 @@ export default function CallScreen({scenario, clip, scoreText}){
           {!isLiveMode && <button className="dark" onClick={hangUp}><PhoneOff size={16}/>Hang up</button>}
           {isLiveMode && <button className="dark" onClick={stopLive}><PhoneOff size={16}/>Stop listening</button>}
           <button className="ghost" onClick={() => setWarningOpen(false)}>Keep listening</button>
+          <button className="ghost" onClick={() => setFamilyAction('Ask the caller to say your agreed family code word. Do not tell them the word first.')}>Ask for our family code word</button>
+          <button className="ghost" onClick={() => setFamilyAction('Simulation only: trusted-contact alert preview — “I may be on a suspicious call. Please call me directly.” No message was sent.')}>Preview trusted-contact alert</button>
         </div>}
+        {familyAction && <small className="familyaction" role="status">{familyAction}</small>}
       </div>}
 
       <div className="livetranscript" aria-live="polite">

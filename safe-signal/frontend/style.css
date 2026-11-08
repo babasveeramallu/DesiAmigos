@@ -266,3 +266,4 @@ footer{background:var(--navy);color:rgba(255,255,255,.75);padding:28px 4%;font-s
 .live-mic-controls .muted{margin:8px 0 0}
 @media(max-width:760px){.callmodes{flex-wrap:wrap}}
 .warningtiming{font-weight:600;color:var(--muted)}
+.familyaction{padding:8px 10px;background:var(--green-soft);color:var(--green);border-radius:4px}

@@ -38,6 +38,10 @@ The optional live-microphone mode requires explicit consent. Browser speech reco
 
 The in-call warning displays an approximate lead time based on transcript position and recorded clip duration; it is a playback estimate, not a measured detection benchmark.
 
+## Family-safety actions
+
+The warning offers family code-word guidance and a preview of a trusted-contact alert. Both are UI-only: no contact information is collected and no message is sent.
+
 ## Verification
 
 ```powershell
