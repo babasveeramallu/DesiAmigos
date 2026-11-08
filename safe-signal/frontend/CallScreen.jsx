@@ -339,6 +339,6 @@ export default function CallScreen({scenario, clip, scoreText}){
       <div className="provenance"><ShieldCheck size={14}/><small>Scam signals come from rules applied to transcript text only. Voice characteristics and AI-generated speech are not assessed.</small></div>
       {!isLiveMode && liveProblem && <p className="playproblem" role="status">{liveProblem}</p>}
     </div>
-  </div>;
+  </div>
   </>;
 }
