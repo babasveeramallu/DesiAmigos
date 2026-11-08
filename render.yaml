@@ -3,7 +3,6 @@ services:
     name: safe-signal-demo
     runtime: python
     branch: main
-    rootDir: safe-signal
     plan: free
     buildCommand: pip install -r backend/requirements.txt && npm --prefix frontend ci && npm --prefix frontend run build
     startCommand: cd backend && uvicorn app:app --host 0.0.0.0 --port $PORT

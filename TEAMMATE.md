@@ -23,7 +23,7 @@ Own `frontend/`, synthetic evaluation assets, and demo narrative. You can start 
 
 ```powershell
 git clone https://github.com/babasveeramallu/DesiAmigos.git
-cd DesiAmigos/safe-signal/frontend
+cd DesiAmigos/frontend
 npm ci
 npm run dev
 ```

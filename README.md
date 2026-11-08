@@ -34,23 +34,23 @@ The Protection view’s **Try your own message** feature posts to the local `POS
 
 ## Public demo deployment
 
-The `main` branch contains the application in `safe-signal/`. The build installs the backend dependencies, builds the React app, and serves the production frontend and API from one HTTPS service.
+The application lives at the repository root on `main`. The build installs the backend dependencies, builds the React app, and serves the production frontend and API from one HTTPS service.
 
 For a manually created Render **Web Service**, use these settings:
 
 | Setting | Value |
 | --- | --- |
 | Branch | `main` |
-| Root Directory | `safe-signal` |
+| Root Directory | *(leave blank)* |
 | Runtime | Python 3 |
 | Build Command | `pip install -r backend/requirements.txt && npm --prefix frontend ci && npm --prefix frontend run build` |
 | Start Command | `cd backend && uvicorn app:app --host 0.0.0.0 --port $PORT` |
 | Health Check Path | `/api/health` |
 | Instance Type | Free |
 
-If a build reports that `backend/requirements.txt` is missing, verify **Root Directory** is `safe-signal` in the Render service settings, save the change, then deploy the latest commit. These commands run inside that directory, not the repository root.
+If a build reports that `backend/requirements.txt` is missing, clear any **Root Directory** value in the Render service settings, save the change, then deploy the latest commit.
 
-Alternatively, create a Render **Blueprint** using branch `main` and Blueprint Path `safe-signal/render.yaml`. The [deployment configuration](render.yaml) keeps `rootDir: safe-signal` because that path is relative to the repository root. Moving or editing this file does not update a manually configured service's settings.
+Alternatively, create a Render **Blueprint** from branch `main`; it uses the root [render.yaml](render.yaml). Editing this file does not update a manually configured service's settings.
 
 Enter `DATABASE_URL` and `NVIDIA_API_KEY` in Render's protected environment-variable setup. Use the Tiger Data PostgreSQL connection string with TLS required and the `postgresql+psycopg://` scheme. A Blueprint generates `RESPONDER_TOKEN`; for a manual Web Service, set it to a strong random presenter key yourself. Do not commit these values or send them in chat. After deployment, share the public site URL; give the presenter key only to trusted demo operators.
 
