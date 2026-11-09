@@ -1,11 +1,11 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {PhoneOff, Play, Square, VolumeX, ShieldAlert, ShieldCheck, Mic, RotateCcw, Signal, Wifi, BatteryFull, Radar, Ban, Flag} from 'lucide-react';
+import {estimateWarningLead, shouldEscalateWarning} from './callWarnings.js';
 
 // Same rule the back end uses: 2+ signals = high, 1 = uncertain, 0 = low.
 function levelFor(count){return count >= 2 ? 'high' : count === 1 ? 'uncertain' : 'low';}
 const LEVEL_TEXT = {low: 'No signals yet', uncertain: 'Suspicious', high: 'Scam Likely'};
 const LOWERED_VOLUME = 0.2;
-const SECRET_REQUEST_LABELS = new Set(['Verification-code request', 'Credential request']);
 function clock(seconds){
   const s = Math.max(0, Math.floor(seconds || 0));
   return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
@@ -25,6 +25,7 @@ export default function CallScreen({scenario, clip, scoreText, blocked, blockNot
   const [source, setSource] = useState(clip ? 'clip' : 'speech');
   const [problem, setProblem] = useState('');
   const [warningOpen, setWarningOpen] = useState(false);
+  const [warningLevel, setWarningLevel] = useState('low');
   const [lowered, setLowered] = useState(false);
   const [warningLeadSeconds, setWarningLeadSeconds] = useState(null);
   const [liveConsent, setLiveConsent] = useState(false);
@@ -37,7 +38,7 @@ export default function CallScreen({scenario, clip, scoreText, blocked, blockNot
   const audioRef = useRef(null);
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
-  const warnedRef = useRef(false);
+  const warnedRef = useRef('low');
   const bubblesRef = useRef(null);
   const runRef = useRef(0); // ignores events from a call that was already stopped
   const liveTranscriptRef = useRef('');
@@ -72,28 +73,25 @@ export default function CallScreen({scenario, clip, scoreText, blocked, blockNot
   // Keep the newest words in view.
   useEffect(() => {const box = bubblesRef.current; if (box) box.scrollTop = box.scrollHeight;}, [revealed]);
 
-  // Show the private warning once the transcript reaches the high-risk threshold.
+  // Reopen a dismissed caution when a second category raises the risk.
   useEffect(() => {
-    if (callActive && level === 'high' && !warnedRef.current){
-      warnedRef.current = true;
+    if (callActive && shouldEscalateWarning(warnedRef.current, level)){
+      const firstWarning = warnedRef.current === 'low';
+      warnedRef.current = level;
+      setWarningLevel(level);
       setWarningOpen(true);
       setFamilyAction('');
       if (!isLiveMode){
-        const loweredTranscript = transcript.toLowerCase();
-        const requestIndex = scenario.assessment.signals
-          .filter(signal => SECRET_REQUEST_LABELS.has(signal.label))
-          .map(signal => loweredTranscript.indexOf(signal.evidence.toLowerCase()))
-          .filter(index => index >= 0)
-          .sort((a, b) => a - b)[0];
         const duration = Number.isFinite(audioRef.current?.duration)
           ? audioRef.current.duration
           : transcript.length / 15;
-        if (requestIndex !== undefined && duration > 0){
-          setWarningLeadSeconds((requestIndex / transcript.length) * duration - elapsed);
-        }else{
-          setWarningLeadSeconds(null);
+        if (firstWarning){
+          setWarningLeadSeconds(estimateWarningLead(transcript, scenario.assessment.signals, duration, elapsed));
         }
-        if (audioRef.current){audioRef.current.volume = LOWERED_VOLUME; setLowered(true);}
+        if (level === 'high' && audioRef.current){
+          audioRef.current.volume = LOWERED_VOLUME;
+          setLowered(true);
+        }
       }else{
         setWarningLeadSeconds(null);
       }
@@ -101,7 +99,8 @@ export default function CallScreen({scenario, clip, scoreText, blocked, blockNot
   }, [callActive, elapsed, isLiveMode, level, scenario.assessment.signals, transcript]);
 
   function reset(){
-    warnedRef.current = false;
+    warnedRef.current = 'low';
+    setWarningLevel('low');
     setWarningOpen(false);
     setLowered(false);
     setWarningLeadSeconds(null);
@@ -280,12 +279,15 @@ export default function CallScreen({scenario, clip, scoreText, blocked, blockNot
         <span className={'callstate ' + (callActive ? 'playing' : status)}>{statusText}</span>
       </div>
 
-      {warningOpen && <div className="warning" role="alert">
+      {warningOpen && <div className={'warning '+warningLevel} role="alert">
         <div className="warninglabel"><ShieldAlert size={14}/>Private alert · only you see this</div>
-        <strong>{callActive ? 'This call appears to be Scam Likely. Hang up.' : 'This call was flagged as Scam Likely.'}</strong>
+        <strong>{warningLevel === 'uncertain'
+          ? 'Suspicious: pause before sharing codes, money, or device access.'
+          : callActive ? 'This call appears to be Scam Likely. Hang up.' : 'This call was flagged as Scam Likely.'}</strong>
+        {warningLevel === 'uncertain' && <small>One warning sign, not proof of fraud. Verify independently using an official app or published number.</small>}
         {warningLeadSeconds !== null && <small className="warningtiming">{warningLeadSeconds >= 0
-          ? `Approx. ${warningLeadSeconds.toFixed(1)}s before the code request · playback estimate`
-          : `Approx. ${Math.abs(warningLeadSeconds).toFixed(1)}s after the code request · playback estimate`}</small>}
+          ? `First caution: approx. ${warningLeadSeconds.toFixed(1)}s before the code request · playback estimate`
+          : `First caution: approx. ${Math.abs(warningLeadSeconds).toFixed(1)}s after the code request · playback estimate`}</small>}
         {lowered && callActive && <span className="lowered"><VolumeX size={14}/> Caller recording volume lowered</span>}
         {!callActive && <small>Don't call back. Use the official number to contact your bank or provider.</small>}
         {callActive && <div className="warningactions">
