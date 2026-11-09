@@ -48,6 +48,8 @@ These are in-app demo actions: no cellular calls are blocked and no carrier, pol
 
 The message checker, live microphone transcript, scenario assessments, and investigation evidence use the same backend scorer. It recognizes bounded request patterns, including OTP/six-digit code requests, credentials, gift-card payments, remote access, money transfers, secrecy, and threats. Ordinary mentions of payment services or support software alone do not count as requests.
 
+Coverage also includes verify/confirm passcode requests, branded gift-card payment or code requests, requests to connect to a PC, bail pressure, family-directed secrecy, and Social Security suspension threats. Explicit self-entry in an official app/site is excluded from verify/confirm-code rules unless the same clause also asks the listener to disclose the code. Direct branded-card purchases for the caller are flagged; ordinary gifts for someone else are not. These contextual rules still cannot reliably distinguish every legitimate request or reported scam story.
+
 Protective wording such as "Never share your verification code" is excluded. Negation is scoped so "We never ask for your password, but read out the six digits" still flags the later request. Evidence is quoted directly from the input so the call screen can reveal each warning at the matching point in playback.
 
 Risk thresholds are unchanged: zero distinct categories = **low**, one = **uncertain**, two or more = **high**. Repeating the same warning does not inflate the level. This is an explainable rule baseline, not a fine-tuned model, calibrated probability, or validated fraud detector; unfamiliar paraphrases, reported speech, and complex context can still be misclassified.
@@ -86,15 +88,25 @@ Alternatively, create a Render **Blueprint** from branch `main`; it uses the roo
 
 Enter `DATABASE_URL` and `NVIDIA_API_KEY` in Render's protected environment-variable setup. Use the Tiger Data PostgreSQL connection string with TLS required. Provider URLs starting with `postgres://` or `postgresql://` are automatically normalized to `postgresql+psycopg://`; existing credentials, TLS settings, and other query parameters are preserved. A Blueprint generates `RESPONDER_TOKEN`; for a manual Web Service, set it to a strong random presenter key yourself. Do not commit these values or send them in chat. After deployment, share the public site URL; give the presenter key only to trusted demo operators.
 
-Synthetic calls, microphone transcription, and rule scoring remain public. Hosted investigation, escalation, and the command center require the presenter key. Hosted investigation is limited to five requests per client IP per ten minutes in one running process. This in-memory limit and shared key are demo safeguards, not production authentication or a durable rate limiter.
+Synthetic calls, microphone transcription, rule scoring, and the read-only Command center demo remain public. Hosted investigation, report submission, and stored incident APIs still require the presenter key. Hosted investigation is limited to five requests per resolved client address per ten minutes in one running process. This in-memory limit and shared key are demo safeguards, not production authentication or a durable rate limiter.
 
-Render's free web service can sleep after inactivity and may take about a minute to wake. Do not rely on local files or SQLite for deployed persistence; the demo uses the configured Tiger Data database.
+Uvicorn already enables proxy-header processing, but only trusts configured proxy addresses (`FORWARDED_ALLOW_IPS`, otherwise the server's loopback default). The deployed proxy chain and client-IP separation have not been verified. Do not blindly set `--forwarded-allow-ips='*'`: this trusts every sender and can allow spoofed client IPs if ingress does not sanitize headers. Configure actual trusted proxy addresses only after confirming the service topology; until then visitors may share a rate-limit bucket. Changing `render.yaml` does not change a manual Render service's settings.
+
+Render's free web service can sleep after inactivity and may take about a minute to wake. Do not rely on local files or SQLite for deployed persistence; Tiger Data is used only when its database URL is configured successfully.
+
+## Keyless judge demo
+
+Open **Command center** to see two read-only, synthetic sample incidents and **Preview sample handoff**. No key, database access, or NVIDIA request is needed. The sample timeline and handoff are authored fixtures, not stored reports or live integrity verification. They remain separate even after a presenter connects to real stored incidents.
+
+Choose **Stored reports (key required)** for the authenticated workspace. Enter the key once per page session; it is shared with Protection in memory, never saved to browser storage. Successful reporting opens the stored incident directly, not the sample view. This does not remove authentication from any endpoint.
 
 ## Live microphone mode
 
 The optional live-microphone mode requires explicit consent. Browser speech recognition transcribes speech; depending on browser settings, its speech service may process microphone audio. Only recognized text is sent to the local `/api/score` endpoint. Scam rules evaluate transcript text only; voice characteristics are not assessed.
 
-The in-call warning displays an approximate lead time based on transcript position and recorded clip duration; it is a playback estimate, not a measured detection benchmark.
+The first category shows a **Suspicious** caution; two categories escalate to **Scam Likely**, including when the first caution was dismissed. Recording-volume reduction still occurs only at the high threshold. The timing readout refers to the **first caution**, based on transcript position and recorded duration (or estimated speech duration), not measured detection latency. A first signal can be the sensitive request itself, so an early warning is not guaranteed. Scenario evidence is precomputed and progressively revealed; microphone text is scored as it arrives.
+
+Rehearse microphone mode in the actual room using Chrome or Edge. If permissions, noise, or speech-service access fail, use **Try your own message**; typed input uses the same scorer. Open the Render site before presenting to allow a sleeping service to wake. The keyless sample handoff consumes no investigation quota.
 
 ## Family-safety actions
 

@@ -124,3 +124,98 @@ def test_api_and_scenario_evidence_contract():
         for signal in item['assessment']['signals']:
             assert set(signal) == {'label', 'evidence'}
             assert signal['evidence'] in item['transcript']
+
+
+@pytest.mark.parametrize(('message', 'labels'), [
+    ('Please verify your one time passcode.', {'Verification-code request'}),
+    ('Confirm the six digits we sent to your phone.', {'Verification-code request'}),
+    ('Can you verify your security code for me?', {'Verification-code request'}),
+    ('Please confirm your OTP over the phone.', {'Verification-code request'}),
+    ('Read back your one-time passcode.', {'Verification-code request'}),
+    ("Grandma, I'm in jail. Don't tell Mom, send it via Zelle.",
+     {'Emergency-relative pressure', 'Secrecy pressure', 'Untraceable payment'}),
+    ("I need bail money. Please don't tell Dad.", {'Emergency-relative pressure', 'Secrecy pressure'}),
+    ('Your grandson is in jail and needs money for bail.', {'Emergency-relative pressure'}),
+    ('Please send bail money through Zelle.', {'Emergency-relative pressure', 'Untraceable payment'}),
+    ('Keep this from your parents and send the money via Cash App.', {'Secrecy pressure', 'Untraceable payment'}),
+    ("This is Microsoft. Let me connect to your PC.", {'Remote-access request'}),
+    ('We need to connect to your computer to remove the virus.', {'Remote-access request'}),
+    ('Allow us to remotely connect to your laptop.', {'Remote-access request'}),
+    ('Give me remote control of your computer.', {'Remote-access request'}),
+    ('Buy Google Play cards and read me the numbers.', {'Gift-card payment'}),
+    ('Purchase Apple gift cards to settle the balance.', {'Gift-card payment'}),
+    ('Pay the tax with Steam cards.', {'Gift-card payment'}),
+    ('Send me the Google Play card codes.', {'Gift-card payment'}),
+    ('Your Social Security number has been suspended.', {'Threat pressure'}),
+    ('Your social security benefits will be suspended unless you send Bitcoin.',
+     {'Threat pressure', 'Untraceable payment'}),
+])
+def test_review_followup_scam_cases(message, labels):
+    """Check added scam paraphrases preserve expected labels and evidence."""
+    result = app.score(message)
+    assert labels <= {signal['label'] for signal in result['signals']}
+    assert result['level'] == ('high' if len(labels) >= 2 else 'uncertain')
+    assert all(signal['evidence'] in message for signal in result['signals'])
+
+
+@pytest.mark.parametrize('message', [
+    'Verify your one time passcode in the official app yourself.',
+    'Confirm the six digits on the official website.',
+    'Never verify your passcode with a caller.',
+    'We never ask you to confirm your security code over the phone.',
+    'Please confirm your appointment tomorrow.',
+    'Verify your mailing address in your account settings.',
+    'Microsoft published instructions for connecting a printer to your PC.',
+    'Connect your printer to your PC using a USB cable.',
+    'I can connect to my computer from home.',
+    'Never let me connect to your PC.',
+    'Do not allow us to remotely connect to your laptop.',
+    'I bought Google Play cards for a birthday.',
+    'Google Play cards are available at the supermarket.',
+    'Buy Google Play cards for your nephew for his birthday.',
+    'Do not buy Google Play cards and read me the numbers.',
+    'Never send me the Apple gift card codes.',
+    'Your Social Security number cannot be suspended.',
+    'Your social security benefits will not be suspended.',
+    'Your grandson is at school. Tell Mom he is fine.',
+    "Don't tell Mom your password or passcode.",
+])
+def test_review_followup_benign_controls(message):
+    """Keep legitimate self-service, purchases, and discussion unflagged."""
+    assert app.score(message)['signals'] == []
+
+
+@pytest.mark.parametrize('message', [
+    'Verify your OTP in the official app and read the OTP aloud to me.',
+    'Confirm the passcode on the official website, then read it out to us.',
+])
+def test_official_self_service_does_not_hide_code_disclosure_requests(message):
+    """Flag requests to disclose a code even beside official-app guidance."""
+    assert app.score(message)['level'] == 'uncertain'
+    assert 'Verification-code request' in {
+        signal['label'] for signal in app.score(message)['signals']
+    }
+
+
+def test_negated_disclosure_does_not_override_official_self_service():
+    """Keep negated code-disclosure advice benign when paired with self-service."""
+    message = 'Verify your OTP in the official app, do not read it aloud to me.'
+    assert app.score(message)['signals'] == []
+
+
+@pytest.mark.parametrize('message', [
+    'Buy Google Play cards for me.',
+    'Purchase Apple gift cards for us.',
+    'Purchase two Apple gift cards to settle the balance.',
+])
+def test_caller_directed_branded_card_purchases_are_flagged(message):
+    """Flag branded-card purchases explicitly requested for the caller."""
+    assert 'Gift-card payment' in {
+        signal['label'] for signal in app.score(message)['signals']
+    }
+
+
+def test_branded_card_purchase_for_birthday_recipient_stays_benign():
+    """Do not treat an ordinary gift purchase for someone else as fraud."""
+    result = app.score('Buy Google Play cards for your nephew for his birthday.')
+    assert result['signals'] == []
