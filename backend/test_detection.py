@@ -151,6 +151,7 @@ def test_api_and_scenario_evidence_contract():
      {'Threat pressure', 'Untraceable payment'}),
 ])
 def test_review_followup_scam_cases(message, labels):
+    """Check added scam paraphrases preserve expected labels and evidence."""
     result = app.score(message)
     assert labels <= {signal['label'] for signal in result['signals']}
     assert result['level'] == ('high' if len(labels) >= 2 else 'uncertain')
@@ -180,4 +181,41 @@ def test_review_followup_scam_cases(message, labels):
     "Don't tell Mom your password or passcode.",
 ])
 def test_review_followup_benign_controls(message):
+    """Keep legitimate self-service, purchases, and discussion unflagged."""
     assert app.score(message)['signals'] == []
+
+
+@pytest.mark.parametrize('message', [
+    'Verify your OTP in the official app and read the OTP aloud to me.',
+    'Confirm the passcode on the official website, then read it out to us.',
+])
+def test_official_self_service_does_not_hide_code_disclosure_requests(message):
+    """Flag requests to disclose a code even beside official-app guidance."""
+    assert app.score(message)['level'] == 'uncertain'
+    assert 'Verification-code request' in {
+        signal['label'] for signal in app.score(message)['signals']
+    }
+
+
+def test_negated_disclosure_does_not_override_official_self_service():
+    """Keep negated code-disclosure advice benign when paired with self-service."""
+    message = 'Verify your OTP in the official app, do not read it aloud to me.'
+    assert app.score(message)['signals'] == []
+
+
+@pytest.mark.parametrize('message', [
+    'Buy Google Play cards for me.',
+    'Purchase Apple gift cards for us.',
+    'Purchase two Apple gift cards to settle the balance.',
+])
+def test_caller_directed_branded_card_purchases_are_flagged(message):
+    """Flag branded-card purchases explicitly requested for the caller."""
+    assert 'Gift-card payment' in {
+        signal['label'] for signal in app.score(message)['signals']
+    }
+
+
+def test_branded_card_purchase_for_birthday_recipient_stays_benign():
+    """Do not treat an ordinary gift purchase for someone else as fraud."""
+    result = app.score('Buy Google Play cards for your nephew for his birthday.')
+    assert result['signals'] == []

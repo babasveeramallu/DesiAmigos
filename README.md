@@ -48,7 +48,7 @@ These are in-app demo actions: no cellular calls are blocked and no carrier, pol
 
 The message checker, live microphone transcript, scenario assessments, and investigation evidence use the same backend scorer. It recognizes bounded request patterns, including OTP/six-digit code requests, credentials, gift-card payments, remote access, money transfers, secrecy, and threats. Ordinary mentions of payment services or support software alone do not count as requests.
 
-Coverage also includes verify/confirm passcode requests, branded gift-card payment or code requests, requests to connect to a PC, bail pressure, family-directed secrecy, and Social Security suspension threats. Explicit self-entry in an official app/site is excluded from verify/confirm-code rules. These contextual rules still cannot reliably distinguish every legitimate request or reported scam story.
+Coverage also includes verify/confirm passcode requests, branded gift-card payment or code requests, requests to connect to a PC, bail pressure, family-directed secrecy, and Social Security suspension threats. Explicit self-entry in an official app/site is excluded from verify/confirm-code rules unless the same clause also asks the listener to disclose the code. Direct branded-card purchases for the caller are flagged; ordinary gifts for someone else are not. These contextual rules still cannot reliably distinguish every legitimate request or reported scam story.
 
 Protective wording such as "Never share your verification code" is excluded. Negation is scoped so "We never ask for your password, but read out the six digits" still flags the later request. Evidence is quoted directly from the input so the call screen can reveal each warning at the matching point in playback.
 

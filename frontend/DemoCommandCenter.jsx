@@ -1,4 +1,5 @@
 import React, {useState} from 'react';
+import {groupSampleEvents} from './sampleHandoff.js';
 
 const SAMPLES = [
   {
@@ -48,8 +49,8 @@ export default function DemoCommandCenter(){
         {showBrief&&<section className="verdict" id="sample-handoff">
           <h2>Sample shift handoff</h2>
           <p>Deterministic grouping of the authored events, not an AI-generated brief.</p>
-          {Object.entries({Done:'action',Open:'question',Risky:'finding'}).map(([title,kind])=><div key={kind}>
-            <h3>{title}</h3>{selected.events.filter(event=>event.kind===kind).map(event=><p key={event.id}>
+          {Object.entries(groupSampleEvents(selected.events)).map(([title,events])=><div key={title}>
+            <h3>{title}</h3>{events.map(event=><p key={event.id}>
               {event.body} <small>[{event.id}]</small>
             </p>)}
           </div>)}

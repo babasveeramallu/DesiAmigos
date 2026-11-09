@@ -15,6 +15,7 @@ client = TestClient(app.app)
     ('POST', '/api/investigate', {'scenario_id': 'bank', 'consent': True}),
 ])
 def test_keyless_preview_does_not_unlock_protected_apis(monkeypatch, method, path, payload):
+    """Keep live responder, reporting, and investigation APIs authenticated."""
     monkeypatch.setenv('RESPONDER_TOKEN', 'test-only')
     response = client.request(method, path, json=payload)
     assert response.status_code == 401

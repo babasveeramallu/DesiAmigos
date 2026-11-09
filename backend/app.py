@@ -80,8 +80,8 @@ RULE_DEFINITIONS = [
      rf'{PAYMENT}{PAYMENT_LINK}{GIFT_CARD}|'
      rf'{REQUEST}{REQUEST_LINK}(?:{GIFT_CARD}|{BRANDED_CARD})\s+(?:numbers?|codes?|pins?)|'
      rf'(?:pay|send|transfer){PAYMENT_LINK}{BRANDED_CARD}|'
-     rf'(?:buy|purchase){PAYMENT_LINK}{BRANDED_CARD}\s+'
-     r'(?:and\s+(?:read|send|give|tell)\s+(?:me|us)\s+(?:the\s+)?(?:numbers?|codes?|pins?)|'
+     rf'(?:buy|purchase)(?:\s+(?:me|us|your|the|a|an|some|two|three|five|ten|google|play|apple|itunes|steam|amazon)){{0,8}}\s+{BRANDED_CARD}\s+'
+     r'(?:for\s+(?:me|us)|and\s+(?:read|send|give|tell)\s+(?:me|us)\s+(?:the\s+)?(?:numbers?|codes?|pins?)|'
      r'to\s+(?:pay|settle|clear)\s+(?:the|your)\s+(?:bill|balance|fine|tax))'),
     ('Untraceable payment',
      rf'{PAYMENT}{PAYMENT_LINK}(?:bitcoin|crypto(?:currency)?|ethereum|zelle|cash\s+app)'),
@@ -127,6 +127,21 @@ SELF_SERVICE_CODE = re.compile(
     r'\s+(?:yourself\s+)?(?:in|on|using)\s+(?:the\s+)?official\s+(?:app|website)\b',
     re.IGNORECASE,
 )
+CODE_DISCLOSURE_REQUEST = re.compile(
+    r'\b(?:read|say|tell|share|send|give|repeat|provide|forward|text)\b'
+    r'[^.!?;]{0,50}\b(?:code|passcode|otp|digits?|pin|number)\b|'
+    r'\b(?:code|passcode|otp|digits?|pin|number)\b'
+    r'[^.!?;]{0,30}\b(?:aloud|out|back|to\s+me|to\s+us)\b|'
+    r'\b(?:read|say)\s+(?:it|that)\s+(?:aloud|out|back)\b',
+    re.IGNORECASE,
+)
+
+def has_code_disclosure_request(clause):
+    """Identify unnegated requests to disclose a code within a clause."""
+    return any(
+        not NEGATED_REQUEST.search(clause[:match.start()])
+        for match in CODE_DISCLOSURE_REQUEST.finditer(clause)
+    )
 
 class Investigation(BaseModel):
     scenario_id: str
@@ -159,6 +174,7 @@ def scenario_by_id(identifier):
     raise HTTPException(404, 'Scenario not found')
 
 def score(transcript):
+    """Return distinct contextual scam signals with exact transcript evidence."""
     found = {}
     for clause in CLAUSE_BOUNDARY.split(transcript):
         for label, pattern in RULES:
@@ -169,7 +185,8 @@ def score(transcript):
                     continue
                 if (label == 'Verification-code request'
                         and re.match(r'(?:verify|confirm)\b', match.group(), re.IGNORECASE)
-                        and SELF_SERVICE_CODE.match(clause[match.end():])):
+                        and SELF_SERVICE_CODE.match(clause[match.end():])
+                        and not has_code_disclosure_request(clause)):
                     continue
                 # Keep exact transcript spans: call playback reveals these progressively.
                 found.setdefault(label, {'label': label, 'evidence': match.group()})
