@@ -48,17 +48,21 @@ REQUEST = r"(?:tell|read|send|share|give|provide|repeat|forward|text|say|need|wh
 REQUEST_LINK = r'(?:\s+(?:me|us|out|aloud|back|over|your|the|that|this|a|an|please|with|to|pin|and)){0,8}\s+'
 CODE = (
     r'(?:(?:one[-\s\u2010-\u2015]+time|verification|security|authentication|login|two[-\s]+factor|2fa|sms)'
-    r'\s+(?:code|password|pin|number)|otp|passcode|'
+    r'\s+(?:code|passcode|password|pin|number)|otp|passcode|'
     r'(?:four|six|eight|[468])[-\s\u2010-\u2015]+digits?(?:[-\s]+(?:code|pin|number))?)'
 )
 PAYMENT = r'(?:pay|send|buy|purchase|transfer|wire|deposit)'
 PAYMENT_LINK = (
-    r'(?:\s+(?:me|us|them|your|the|a|an|with|using|via|through|in|by|for|some|two|three|five|ten|'
-    r'worth|of|money|fee|funds|bill|payment|balance|fine|taxes|\$?\d+(?:,\d{3})*(?:\.\d+)?)){0,8}\s+'
+    r'(?:\s+(?:me|us|them|it|your|the|a|an|with|using|via|through|in|by|for|some|two|three|five|ten|'
+    r'worth|of|bail|money|fee|funds|bill|payment|balance|fine|tax|taxes|\$?\d+(?:,\d{3})*(?:\.\d+)?)){0,8}\s+'
 )
+CARD_BRAND = r'(?:google\s+play|apple|itunes|steam|amazon)'
+GIFT_CARD = rf'(?:(?:{CARD_BRAND}|prepaid)\s+)?gift[-\s]+cards?'
+BRANDED_CARD = rf'{CARD_BRAND}\s+(?:gift[-\s]+)?cards?'
 RULE_DEFINITIONS = [
     ('Verification-code request',
      rf'{REQUEST}{REQUEST_LINK}{CODE}|'
+     rf'(?:verify|confirm){REQUEST_LINK}{CODE}|'
      rf'{REQUEST}{REQUEST_LINK}code\s+(?:(?:that\s+)?(?:we|I|you)\s+(?:just\s+)?(?:sent|texted|received)|'
      r'(?:from|in)\s+(?:the|your)\s+(?:text(?:\s+message)?|sms|email))|'
      r'(?:read|tell)\s+(?:me|us)\s+(?:the|your)\s+code'),
@@ -68,11 +72,17 @@ RULE_DEFINITIONS = [
     ('Remote-access request',
      r'(?:install|download|open|run|launch|enable|allow|grant|give)'
      r'(?:\s+(?:me|us|the|this|your|a|our)){0,5}\s+'
-     r'(?:anydesk|teamviewer|remote\s+(?:access|desktop)|screen[-\s]+sharing)|'
-     r'(?:allow|let)\s+(?:me|us)\s+(?:to\s+)?(?:access|control)\s+your\s+(?:computer|device|screen)'),
+     r'(?:anydesk|teamviewer|remote\s+(?:access|desktop|control)|screen[-\s]+sharing)|'
+     r'(?:allow|let)\s+(?:me|us)\s+(?:to\s+)?(?:access|control)\s+your\s+(?:computer|device|screen)|'
+     r'(?:(?:allow|let)\s+(?:me|us)\s+(?:to\s+)?|(?:we|I)\s+(?:need|want)\s+to\s+)'
+     r'(?:remotely\s+)?connect\s+to\s+(?:your|the)\s+(?:pc|computer|laptop|device)'),
     ('Gift-card payment',
-     rf'{PAYMENT}{PAYMENT_LINK}(?:prepaid\s+)?gift[-\s]+cards?|'
-     rf'{REQUEST}{REQUEST_LINK}gift[-\s]+card\s+(?:number|code|pin)'),
+     rf'{PAYMENT}{PAYMENT_LINK}{GIFT_CARD}|'
+     rf'{REQUEST}{REQUEST_LINK}(?:{GIFT_CARD}|{BRANDED_CARD})\s+(?:numbers?|codes?|pins?)|'
+     rf'(?:pay|send|transfer){PAYMENT_LINK}{BRANDED_CARD}|'
+     rf'(?:buy|purchase){PAYMENT_LINK}{BRANDED_CARD}\s+'
+     r'(?:and\s+(?:read|send|give|tell)\s+(?:me|us)\s+(?:the\s+)?(?:numbers?|codes?|pins?)|'
+     r'to\s+(?:pay|settle|clear)\s+(?:the|your)\s+(?:bill|balance|fine|tax))'),
     ('Untraceable payment',
      rf'{PAYMENT}{PAYMENT_LINK}(?:bitcoin|crypto(?:currency)?|ethereum|zelle|cash\s+app)'),
     ('Payment pressure',
@@ -81,16 +91,21 @@ RULE_DEFINITIONS = [
      r'\s+(?:to|into)\s+(?:a|the|our)\s+(?:safe|secure|holding)\s+account'),
     ('Emergency-relative pressure',
      r'(?:your|our|my)\s+(?:grandson|granddaughter|daughter|son|child|relative)\s+needs?\s+bail|'
+     r'(?:your|our|my)\s+(?:grandson|granddaughter|daughter|son|child|relative)\s+is\s+(?:in\s+jail|under\s+arrest)|'
+     r"I(?:['\u2019]m|\s+am)\s+(?:in\s+jail|under\s+arrest)|"
+     r'I\s+need\s+(?:money\s+for\s+)?bail(?:\s+money)?|'
      rf'{PAYMENT}{PAYMENT_LINK}bail'),
     ('Secrecy pressure',
      r"(?:do\s+not|don['\u2019]t|never)\s+(?:tell|discuss|mention)"
-     r'(?:\s+(?:this|it|about|with|your|the|call)){0,5}\s+(?:anyone|anybody|family|bank|police)|'
-     r'keep\s+(?:this|it|the\s+call)\s+(?:a\s+secret|secret|confidential|between\s+us)'),
+     r'(?:\s+(?:this|it|about|with|your|the|call)){0,5}\s+(?:anyone|anybody|family|bank|police|mom|mum|dad|mother|father|parents)|'
+     r'keep\s+(?:this|it|the\s+call)\s+(?:a\s+secret|secret|confidential|between\s+us)|'
+     r'keep\s+(?:this|it)\s+from\s+(?:your\s+)?(?:family|parents|mom|dad|bank|police)'),
     ('Threat pressure',
      r'avoid\s+arrest|'
      r'(?:you|your\s+(?:grandson|granddaughter|son|daughter|child))'
      r'\s+(?:will\s+be|have\s+been|was|were|is)\s+arrested|'
-     r'your\s+(?:account|card|service)\s+(?:will\s+be|is\s+being)\s+(?:locked|suspended|closed|frozen)'),
+     r'your\s+(?:account|card|service|social\s+security(?:\s+(?:number|benefits))?|ssn)'
+     r'\s+(?:will\s+be|has\s+been|is\s+being|is)\s+(?:locked|suspended|closed|frozen)'),
     ('Urgency', r'(?:act|pay)\s+(?:now|immediately|right\s+now)'),
 ]
 RULES = [(label, re.compile(rf'\b(?:{pattern})\b', re.IGNORECASE)) for label, pattern in RULE_DEFINITIONS]
@@ -106,6 +121,10 @@ NEGATED_REQUEST = re.compile(
 IMMEDIATE = re.compile(r'\s+(?:right\s+)?immediately\b', re.IGNORECASE)
 PROTECTED_SECRET = re.compile(
     rf'\s+(?:(?:your|the|this|a|an)\s+)?(?:{CODE}|code|pin|password|credentials)\b',
+    re.IGNORECASE,
+)
+SELF_SERVICE_CODE = re.compile(
+    r'\s+(?:yourself\s+)?(?:in|on|using)\s+(?:the\s+)?official\s+(?:app|website)\b',
     re.IGNORECASE,
 )
 
@@ -147,6 +166,10 @@ def score(transcript):
                 if NEGATED_REQUEST.search(clause[:match.start()]):
                     continue
                 if label == 'Secrecy pressure' and PROTECTED_SECRET.match(clause[match.end():]):
+                    continue
+                if (label == 'Verification-code request'
+                        and re.match(r'(?:verify|confirm)\b', match.group(), re.IGNORECASE)
+                        and SELF_SERVICE_CODE.match(clause[match.end():])):
                     continue
                 # Keep exact transcript spans: call playback reveals these progressively.
                 found.setdefault(label, {'label': label, 'evidence': match.group()})
