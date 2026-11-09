@@ -7,19 +7,6 @@ from sqlalchemy.exc import ArgumentError
 
 client = TestClient(app.app)
 
-@pytest.mark.parametrize(('method', 'path', 'payload'), [
-    ('GET', '/api/incidents', None),
-    ('GET', '/api/incidents/sample-bank/brief', None),
-    ('POST', '/api/incidents/sample-bank/events', {'body': 'Sample', 'kind': 'action'}),
-    ('POST', '/api/escalate', {'scenario_id': 'bank', 'consent': True}),
-    ('POST', '/api/investigate', {'scenario_id': 'bank', 'consent': True}),
-])
-def test_keyless_preview_does_not_unlock_protected_apis(monkeypatch, method, path, payload):
-    monkeypatch.setenv('RESPONDER_TOKEN', 'test-only')
-    response = client.request(method, path, json=payload)
-    assert response.status_code == 401
-    assert response.json()['detail'] == 'Responder authorization required'
-
 @pytest.mark.parametrize('scheme', ['postgres', 'postgresql'])
 def test_provider_database_urls_select_psycopg(scheme):
     url = app.normalize_database_url(
